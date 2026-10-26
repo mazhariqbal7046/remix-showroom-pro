@@ -1,0 +1,8 @@
+{
+  "name": "Remix Showroom Pro - SaaS Showroom Management",
+  "description": "Comprehensive Showroom Management SaaS platform for inventory, sales, invoicing, partners, customers, and super admin operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

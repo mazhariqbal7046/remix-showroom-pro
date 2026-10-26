@@ -1,0 +1,1081 @@
+# PROJECT: SHOWROOM PRO — COMPLETE SAAS FRONTEND
+
+Act as a senior frontend engineer, SaaS product designer, UI/UX specialist, and React architect.
+
+Build a complete, professional, modern, responsive Showroom Management SaaS frontend. The product should look and feel like a premium commercial SaaS application, with a polished interface inspired by the usability of modern business dashboards.
+
+IMPORTANT: Build the actual working frontend, not just a design mockup. Create all required files, implement every page, configure routing, and ensure that all interactive UI elements work.
+
+For this first phase, focus ONLY on the frontend. Do not implement the real backend, authentication, database, payment processing, or n8n workflows yet. We will integrate Supabase in the next phase.
+
+==================================================
+1. TECHNOLOGY STACK
+==================================================
+
+Use the following technologies:
+
+- React.js
+- Vite
+- JavaScript
+- Tailwind CSS
+- React Router DOM
+- Lucide React icons
+- Recharts for analytics and charts
+- React Context API for frontend state management
+- Local demo data for frontend previews only
+
+Use reusable components and a clean folder structure.
+
+Do not use TypeScript unless explicitly required.
+
+The application must run using:
+
+npm install
+npm run dev
+
+Make sure all dependencies and configuration files are included.
+
+==================================================
+2. DESIGN REQUIREMENTS
+==================================================
+
+Create a premium SaaS dashboard with a clean, modern, professional appearance.
+
+Design inspiration:
+- Modern SaaS dashboards
+- Stripe-style clarity
+- Linear-style navigation
+- Professional ERP management systems
+
+Design requirements:
+
+- White and light-gray surfaces
+- Dark navy or charcoal text
+- Professional blue or indigo primary accent
+- Subtle shadows and borders
+- Rounded cards and buttons
+- Clean typography
+- Proper spacing and alignment
+- Professional tables
+- Modern charts
+- Attractive empty states
+- Loading skeletons where appropriate
+- Helpful tooltips
+- Confirmation dialogs for destructive actions
+- Toast notifications for user feedback
+- Responsive mobile navigation
+
+Include a light theme and a dark theme toggle.
+
+Avoid excessive gradients, oversized text, unnecessary animations, and cluttered layouts.
+
+The design should look like a real production-ready commercial SaaS product.
+
+==================================================
+3. APPLICATION STRUCTURE
+==================================================
+
+Create two separate experiences:
+
+A. Public Website and Showroom Owner Application
+B. Super Admin Application
+
+Public website and showroom dashboard routes:
+
+/
+ /pricing
+ /login
+ /signup
+ /forgot-password
+ /dashboard
+ /customers
+ /products
+ /inventory
+ /suppliers
+ /sales
+ /invoices
+ /purchases
+ /partners
+ /expenses
+ /reports
+ /subscription
+ /notifications
+ /settings
+ /profile
+
+Super Admin routes:
+
+/super-admin
+/super-admin/showrooms
+/super-admin/subscriptions
+/super-admin/plans
+/super-admin/payments
+/super-admin/revenue
+/super-admin/analytics
+/super-admin/system-health
+/super-admin/activity-logs
+/super-admin/settings
+
+Create a consistent navigation system.
+
+Protect the appearance of admin routes through frontend route guards for the demo, while clearly recognizing that actual authorization must be enforced by the backend in a future phase.
+
+Do not expose any real administrator password or secret key.
+
+==================================================
+4. PUBLIC LANDING PAGE
+==================================================
+
+Build a complete SaaS landing page.
+
+Sections:
+
+1. Professional navigation bar
+2. Hero section
+3. Product dashboard preview
+4. Main features
+5. Business benefits
+6. Inventory management section
+7. Sales and finance section
+8. Subscription plans
+9. Frequently asked questions
+10. Final call-to-action
+11. Professional footer
+
+Hero headline:
+
+"Manage Your Showroom. Grow Your Business."
+
+Supporting text:
+
+"One powerful platform to manage your customers, inventory, sales, partners, expenses, and business performance."
+
+Buttons:
+
+- Start Free
+- Explore Features
+- View Pricing
+
+The landing page should be visually attractive and fully responsive.
+
+Do not claim that real payments, authentication, or integrations are already operational.
+
+==================================================
+5. SUBSCRIPTION PRICING PAGE
+==================================================
+
+Create three subscription plans.
+
+BASIC PLAN
+- Maximum 2 partners
+- Showroom dashboard
+- Customer management
+- Product and inventory management
+- Sales records
+- Expense tracking
+- Basic reports
+- Monthly subscription option
+
+BUSINESS PLAN
+- Maximum 6 partners
+- All Basic features
+- Advanced analytics interface
+- Detailed financial reports
+- Expanded business management features
+- Monthly subscription option
+
+ENTERPRISE PLAN
+- Unlimited partners
+- All Business features
+- Advanced analytics interface
+- Enterprise management interface
+- Expanded reporting interface
+- Monthly subscription option
+
+IMPORTANT SUBSCRIPTION RULES:
+
+- Basic allows a maximum of 2 partners.
+- Business allows a maximum of 6 partners.
+- Enterprise has no fixed partner limit.
+- These limits must be displayed consistently throughout the application.
+- Never display the old 4-partner or 10-partner limits.
+- Do not invent final subscription prices. Use clearly labeled configurable demo prices or "Contact Sales" until the actual prices are decided.
+- Include Monthly and Yearly billing selection in the UI.
+- Mark demo payment information as simulated.
+- Do not claim that the frontend can enforce secure subscription access independently.
+
+Each plan should have:
+- Plan name
+- Price placeholder
+- Billing interval
+- Partner limit
+- Feature list
+- Current plan status where applicable
+- Upgrade or downgrade button
+
+Create a subscription comparison section.
+
+==================================================
+6. SIGNUP AND LOGIN PAGES
+==================================================
+
+Create professional signup and login interfaces.
+
+Signup form fields:
+
+- Owner's full name
+- Email address
+- Phone number
+- Password
+- Confirm password
+- Showroom name
+- Business category
+- Business address
+- Country
+- Select subscription plan
+- Accept terms and conditions
+
+Login fields:
+
+- Email
+- Password
+- Remember me checkbox
+- Forgot password link
+
+Include:
+
+- Password visibility toggle
+- Form validation
+- Required-field validation
+- Valid email format checks
+- Password confirmation checks
+- Helpful error messages
+- Success notifications
+
+For this frontend-only phase, use a clearly labeled demo session and local sample state.
+
+Never store actual passwords in localStorage or sessionStorage.
+
+Never pretend that demo login provides real security.
+
+Keep the authentication layer easy to replace with Supabase Auth later.
+
+==================================================
+7. SHOWROOM OWNER DASHBOARD
+==================================================
+
+Create a professional dashboard with a persistent sidebar and top navigation.
+
+Sidebar:
+
+- Dashboard
+- Customers
+- Products
+- Inventory
+- Suppliers
+- Sales
+- Invoices
+- Purchases
+- Partners
+- Expenses
+- Reports
+- Subscription
+- Notifications
+- Settings
+
+Top navigation:
+
+- Search
+- Date selector
+- Notifications
+- Help
+- Profile menu
+- Theme toggle
+
+Dashboard summary cards:
+
+- Total Sales
+- Total Customers
+- Total Products
+- Total Stock Value
+- Total Expenses
+- Net Profit
+
+Include:
+
+- Sales overview chart
+- Revenue trend chart
+- Recent transactions
+- Low-stock products
+- Recent customers
+- Top-selling products
+- Recent activity
+- Subscription status card
+
+Use clearly labeled sample data for the frontend demo.
+
+Create meaningful empty states when no records exist.
+
+All summary cards, charts, and tables should adapt to available demo data.
+
+==================================================
+8. CUSTOMER MANAGEMENT
+==================================================
+
+Create a complete customer management page.
+
+Features:
+
+- Customer table
+- Search customers
+- Filter customers
+- Sort columns
+- Pagination
+- Add customer
+- Edit customer
+- View customer details
+- Delete customer with confirmation
+- Export CSV
+
+Customer fields:
+
+- Customer ID
+- Full name
+- Phone
+- Email
+- Address
+- Total purchases
+- Outstanding balance
+- Registration date
+
+Create a reusable customer form modal.
+
+Add client-side validation.
+
+All buttons must have appropriate working behavior.
+
+==================================================
+9. PRODUCT AND INVENTORY MANAGEMENT
+==================================================
+
+Create Products and Inventory pages.
+
+Product fields:
+
+- Product name
+- SKU
+- Barcode
+- Category
+- Brand
+- Cost price
+- Selling price
+- Quantity
+- Minimum stock threshold
+- Supplier
+- Description
+
+Features:
+
+- Add product
+- Edit product
+- Delete product
+- Search products
+- Category filtering
+- Stock-level indicators
+- Low-stock warnings
+- Inventory valuation
+- Product detail view
+- CSV export
+
+Show these inventory statuses:
+
+- In Stock
+- Low Stock
+- Out of Stock
+
+Use clear badges and accessible colors.
+
+Prevent negative quantities in client-side forms.
+
+Keep inventory valuation and quantity calculations consistent.
+
+==================================================
+10. SUPPLIER MANAGEMENT
+==================================================
+
+Create a supplier management page.
+
+Fields:
+
+- Supplier name
+- Company
+- Phone
+- Email
+- Address
+- Products supplied
+- Outstanding balance
+
+Features:
+
+- Add supplier
+- Edit supplier
+- View supplier details
+- Delete supplier
+- Search and filter
+- Pagination
+
+==================================================
+11. SALES AND INVOICE MANAGEMENT
+==================================================
+
+Create a Sales page and an Invoices page.
+
+Sales functionality:
+
+- Create new sale
+- Select customer
+- Add multiple products
+- Set product quantities
+- Display unit prices
+- Calculate subtotal
+- Apply discount
+- Calculate total
+- Enter payment amount
+- Calculate remaining balance
+- Select payment method
+- Save demo sale
+
+Payment method options:
+
+- Cash
+- Bank Transfer
+- Card
+- Other
+
+Invoice functionality:
+
+- Invoice number
+- Invoice date
+- Customer details
+- Product details
+- Quantity
+- Unit price
+- Discount
+- Total amount
+- Paid amount
+- Outstanding balance
+
+Include:
+
+- Invoice preview
+- Print invoice
+- Download or export invoice where practical
+- Search invoices
+- Filter by date and status
+
+Use proper currency formatting with a configurable currency setting.
+
+Set PKR as the initial demo currency.
+
+Do not claim that invoices are legally compliant in every jurisdiction.
+
+==================================================
+12. PURCHASE MANAGEMENT
+==================================================
+
+Create a Purchases page.
+
+Features:
+
+- Record a purchase
+- Select supplier
+- Add products
+- Set quantities
+- Record purchase costs
+- Calculate purchase total
+- Record amount paid
+- Calculate outstanding balance
+- Show purchase history
+- Filter by supplier and date
+
+Use demo data only.
+
+Do not implement real accounting integrations yet.
+
+==================================================
+13. PARTNER MANAGEMENT
+==================================================
+
+Create a dedicated Partners page.
+
+Partner fields:
+
+- Full name
+- Email
+- Phone
+- Role
+- Joining date
+- Status
+
+Features:
+
+- Invite partner interface
+- Add partner
+- Edit partner
+- View partner details
+- Remove partner
+- Search partners
+- Display partner limit
+- Display current partner count
+- Display remaining partner slots
+
+PARTNER LIMIT RULES:
+
+Basic: Maximum 2 partners.
+Business: Maximum 6 partners.
+Enterprise: Unlimited partners.
+
+Show a usage indicator such as:
+
+"4 of 6 partner slots used."
+
+When the limit is reached:
+
+- Disable adding additional partners in the demo interface.
+- Display a clear explanation.
+- Show an Upgrade Plan button.
+- Allow navigation to the subscription page.
+
+Enterprise should not display a fixed maximum.
+
+Clearly indicate that real invitations and permissions require backend integration.
+
+==================================================
+14. EXPENSE MANAGEMENT
+==================================================
+
+Create an Expenses page.
+
+Fields:
+
+- Expense title
+- Category
+- Amount
+- Payment method
+- Date
+- Notes
+
+Features:
+
+- Add expense
+- Edit expense
+- Delete expense
+- Filter by category
+- Filter by date
+- Search expenses
+- Display expense totals
+- Export CSV
+
+Example categories:
+
+- Rent
+- Salaries
+- Utilities
+- Transport
+- Marketing
+- Maintenance
+- Other
+
+==================================================
+15. REPORTS AND ANALYTICS
+==================================================
+
+Create a Reports page with professional charts.
+
+Reports should include:
+
+- Sales report
+- Revenue report
+- Expense report
+- Profit overview
+- Inventory valuation
+- Best-selling products
+- Customer purchase summary
+- Payment status summary
+
+Filters:
+
+- Today
+- Last 7 days
+- Last 30 days
+- This month
+- This year
+- Custom date range
+
+Include CSV export where practical.
+
+Label all data as demo data.
+
+Do not imply that simulated figures represent real business performance.
+
+==================================================
+16. SUBSCRIPTION MANAGEMENT
+==================================================
+
+Create a dedicated Subscription page.
+
+Display:
+
+- Current plan
+- Subscription status
+- Billing interval
+- Start date
+- Expiration date
+- Next renewal date
+- Partner limit
+- Available plan upgrades
+- Billing history interface
+
+Subscription statuses:
+
+- Trial
+- Active
+- Expiring Soon
+- Expired
+- Cancelled
+
+Features:
+
+- Upgrade plan
+- Downgrade plan
+- Select billing interval
+- View invoices
+- View payment history
+- Renewal reminder interface
+
+Important behavior:
+
+- Show a reminder when the subscription is nearing expiration.
+- Show a renewal or upgrade message when the subscription expires.
+- Explain that business records are retained after expiry.
+- Never delete business data just because a subscription expires.
+- Keep renewal and payment actions simulated in this frontend phase.
+
+The actual subscription status, payment verification, renewal process, and access restrictions must be enforced by the future backend.
+
+==================================================
+17. NOTIFICATIONS
+==================================================
+
+Create a Notifications page and notification dropdown.
+
+Example notifications:
+
+- Subscription expiring soon
+- Low stock
+- New customer added
+- Sale recorded
+- Invoice payment pending
+- Partner limit reached
+
+Features:
+
+- Mark as read
+- Mark all as read
+- Filter notifications
+- Clear demo notifications
+
+Use local demo state only.
+
+==================================================
+18. SETTINGS AND PROFILE
+==================================================
+
+Create Settings and Profile pages.
+
+Settings sections:
+
+- Owner profile
+- Showroom information
+- Business category
+- Address and contact details
+- Currency selection
+- Date format
+- Theme preferences
+- Notification preferences
+- Language preference
+
+Profile page:
+
+- Name
+- Email
+- Phone
+- Profile image placeholder
+- Edit profile interface
+
+Include save and cancel buttons.
+
+Persist harmless demo preferences where appropriate.
+
+Do not store sensitive credentials in browser storage.
+
+==================================================
+19. SUPER ADMIN PANEL
+==================================================
+
+Create a separate, professional Super Admin dashboard.
+
+The Super Admin is the SaaS platform owner, not an ordinary showroom owner.
+
+Super Admin sidebar:
+
+- Overview
+- Showrooms
+- Subscriptions
+- Plans & Pricing
+- Payments
+- Revenue Analytics
+- Platform Analytics
+- System Health
+- Activity Logs
+- Platform Settings
+
+SUPER ADMIN OVERVIEW:
+
+Display:
+
+- Total registered showrooms
+- Active subscriptions
+- Expired subscriptions
+- Trial subscriptions
+- Monthly recurring revenue
+- Total subscription revenue
+- Pending payments
+- New registrations
+
+Include:
+
+- Subscription growth chart
+- Revenue trend chart
+- Recent registrations
+- Recent subscription activity
+- Plan distribution
+- Platform health overview
+
+Use realistic-looking but clearly labeled sample data.
+
+==================================================
+20. SHOWROOM ADMINISTRATION
+==================================================
+
+Create the Showrooms management page.
+
+Features:
+
+- View registered showrooms
+- Search showrooms
+- Filter by status
+- Filter by subscription plan
+- View showroom details
+- View subscription information
+- View registration date
+- Suspend demo account
+- Reactivate demo account
+- View usage summary
+
+Do not expose showroom passwords.
+
+Do not display private customer information unnecessarily.
+
+Explain that real account suspension and authorization require backend enforcement.
+
+==================================================
+21. SUPER ADMIN SUBSCRIPTION AND PLAN MANAGEMENT
+==================================================
+
+Create the subscription management interface.
+
+Show:
+
+- Showroom name
+- Subscription plan
+- Subscription status
+- Billing interval
+- Start date
+- Expiration date
+- Payment status
+
+Provide filtering and search.
+
+Create a Plans & Pricing page where the platform owner can edit demo configuration for:
+
+- Plan name
+- Monthly price
+- Yearly price
+- Partner limit
+- Features
+- Plan availability
+
+Important:
+
+- Basic partner limit must remain 2.
+- Business partner limit must remain 6.
+- Enterprise partner limit must remain unlimited.
+
+Plan editing must not accidentally change these required partner limits.
+
+Use validation and confirmation dialogs.
+
+For this phase, changes should affect demo frontend state only.
+
+==================================================
+22. PAYMENTS AND REVENUE ANALYTICS
+==================================================
+
+Create a Payments page.
+
+Fields:
+
+- Payment reference
+- Showroom
+- Plan
+- Amount
+- Payment method
+- Payment date
+- Payment status
+
+Payment statuses:
+
+- Paid
+- Pending
+- Failed
+- Refunded
+
+Create Revenue Analytics with:
+
+- Monthly subscription revenue
+- Yearly revenue trend
+- Revenue by plan
+- Active subscriptions
+- Renewal trends
+
+Clearly identify all figures as simulated demo data.
+
+Never claim that a payment has actually been received or verified.
+
+==================================================
+23. PERFORMANCE MONITORING AND SYSTEM HEALTH
+==================================================
+
+Create a System Health dashboard.
+
+Display demo monitoring cards for:
+
+- API response time
+- Error rate
+- Database response time
+- Storage usage
+- Request volume
+- Active sessions
+- Application availability
+
+Include:
+
+- Response-time chart
+- Error trend chart
+- Recent system events
+- Service status indicators
+- Activity logs
+
+IMPORTANT:
+
+These must be identified as simulated monitoring values until real monitoring services are integrated.
+
+Do not fabricate live server status.
+
+Prepare a clean interface that can later connect to actual backend monitoring and logging.
+
+==================================================
+24. PLATFORM SETTINGS
+==================================================
+
+Create a Super Admin settings page.
+
+Sections:
+
+- Platform name
+- Logo placeholder
+- Support email
+- Default currency
+- Subscription reminder settings
+- Trial configuration
+- Feature flags
+- Maintenance mode interface
+- Platform branding
+
+Keep settings in demo frontend state.
+
+Do not implement destructive global actions.
+
+Do not expose API secrets.
+
+==================================================
+25. FRONTEND STATE MANAGEMENT
+==================================================
+
+Use React Context or another lightweight approach to manage demo state.
+
+Requirements:
+
+- Maintain consistent navigation.
+- Keep demo customer records consistent across relevant pages.
+- Keep product and inventory information consistent.
+- Update dashboard summaries when demo records change.
+- Keep partner counts synchronized.
+- Update plan selection in the demo session.
+- Keep notification counts consistent.
+- Persist only non-sensitive demo data where appropriate.
+
+Use realistic sample records, but make it obvious that the data is simulated.
+
+Provide a Reset Demo Data button with a confirmation dialog.
+
+Do not use localStorage as real authentication or authorization.
+
+==================================================
+26. SECURITY AND BACKEND PREPARATION
+==================================================
+
+This phase is frontend only.
+
+Prepare the architecture for future integration with Supabase.
+
+Future backend requirements:
+
+- Supabase Auth
+- PostgreSQL database
+- Row Level Security
+- Tenant isolation using showroom or organization IDs
+- Role-based access control
+- Server-side subscription verification
+- Server-side partner limit enforcement
+- Secure payment verification
+- Audit logging
+- Protected administrator access
+
+Never put service-role keys, payment secrets, or administrator passwords in frontend code.
+
+Do not pretend frontend route guards provide real security.
+
+Use a clean service layer so demo data can later be replaced by Supabase API calls without rewriting the entire UI.
+
+==================================================
+27. PROJECT FOLDER STRUCTURE
+==================================================
+
+Organize the application professionally.
+
+Suggested structure:
+
+src/
+  components/
+    layout/
+    navigation/
+    dashboard/
+    tables/
+    forms/
+    charts/
+    modals/
+    notifications/
+    common/
+
+  pages/
+    public/
+    auth/
+    showroom/
+    admin/
+
+  context/
+  hooks/
+  services/
+  data/
+  utils/
+  routes/
+  assets/
+  App.jsx
+  main.jsx
+  index.css
+
+Include all required configuration files.
+
+Keep components reusable and avoid putting the entire application into one enormous component.
+
+==================================================
+28. QUALITY REQUIREMENTS
+==================================================
+
+The final application must:
+
+- Start successfully using npm run dev.
+- Have no missing imports.
+- Have no broken routes.
+- Have no missing dependencies.
+- Have consistent styling.
+- Have responsive layouts.
+- Have functional search and filters where specified.
+- Have working forms and validation.
+- Have functional modals and confirmation dialogs.
+- Have functional demo CRUD operations.
+- Have functional subscription plan selection.
+- Have consistent partner limit calculations.
+- Have working dashboard charts.
+- Have working sidebar navigation.
+- Have usable mobile layouts.
+- Have accessible labels and keyboard navigation.
+- Have clear loading, error, and empty states.
+
+Avoid placeholder buttons that do nothing.
+
+If an action cannot be implemented without a backend, display an honest demo message.
+
+==================================================
+29. IMPLEMENTATION INSTRUCTIONS
+==================================================
+
+Work directly on the actual project files if a coding workspace is available.
+
+First:
+1. Inspect the existing project.
+2. Identify the installed dependencies.
+3. Preserve useful existing code.
+4. Set up the design system.
+5. Implement the layout and routing.
+6. Build the public pages.
+7. Build the showroom dashboard.
+8. Build all management pages.
+9. Build the subscription interface.
+10. Build the Super Admin panel.
+11. Add demo data and working interactions.
+12. Test all routes and functionality.
+13. Fix build errors and missing imports.
+14. Provide a clear summary of completed features.
+
+Do not stop after creating a landing page or dashboard screenshot.
+
+If the project is too large to complete in one pass, work in logical phases while maintaining a runnable application.
+
+When providing code in chat, always give the complete contents of each required file and clearly identify its path.
+
+Do not silently omit required files.
+
+FINAL OBJECTIVE:
+
+Deliver a complete, polished, responsive Showroom Management SaaS frontend that is ready for the next phase of Supabase backend integration.
+
+The final product must look like a professional SaaS application, not a beginner tutorial project.
+
+Remember the fixed partner limits:
+
+BASIC = 2 PARTNERS
+BUSINESS = 6 PARTNERS
+ENTERPRISE = UNLIMITED PARTNERS
