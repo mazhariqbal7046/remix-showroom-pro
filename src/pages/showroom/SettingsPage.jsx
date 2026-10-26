@@ -11,14 +11,14 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useTheme } from '../../context/ThemeContext';
+import { COLOR_PALETTES, useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { CURRENCY_MAP } from '../../utils/formatters';
 
 export const SettingsPage = () => {
   const { showroomInfo, updateShowroomSettings, resetDemoData } = useApp();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, palette, setPalette } = useTheme();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -224,6 +224,40 @@ export const SettingsPage = () => {
               {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             </Button>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2" role="radiogroup" aria-label="Color palette">
+            {COLOR_PALETTES.map((option) => {
+              const isSelected = palette === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setPalette(option.id)}
+                  className={`rounded-xl border p-4 text-left transition-all ${
+                    isSelected
+                      ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600/20 dark:bg-slate-800'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span>
+                      <span className="block text-xs font-bold text-slate-900 dark:text-white">{option.name}</span>
+                      <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">{option.description}</span>
+                    </span>
+                    {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />}
+                  </span>
+                  <span className="mt-3 flex gap-2" aria-hidden="true">
+                    {option.colors.map((color) => (
+                      <span key={color} className="h-6 flex-1 rounded-md border border-black/5" style={{ backgroundColor: color }} />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Palette changes apply immediately and are saved in this browser.</p>
         </div>
 
         <div className="flex justify-end pt-2">

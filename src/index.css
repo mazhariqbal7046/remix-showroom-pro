@@ -8,6 +8,77 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Runtime color palettes: app blue and indigo accents follow the selected brand. */
+html[data-color-palette="salesport"] {
+  --color-blue-50: #eff5ff;
+  --color-blue-100: #dce8ff;
+  --color-blue-200: #b8d0ff;
+  --color-blue-300: #87b0ff;
+  --color-blue-400: #5388ff;
+  --color-blue-500: #2f6cf5;
+  --color-blue-600: #185df1;
+  --color-blue-700: #1249c6;
+  --color-blue-800: #103b9f;
+  --color-blue-900: #12377f;
+  --color-blue-950: #031130;
+}
+
+html[data-color-palette="prompt-indigo"] {
+  --color-blue-50: #f0f8ff;
+  --color-blue-100: #dceeff;
+  --color-blue-200: #b8ddff;
+  --color-blue-300: #8ac7ff;
+  --color-blue-400: #66a3ff;
+  --color-blue-500: #4d66ff;
+  --color-blue-600: #3333ff;
+  --color-blue-700: #2929d6;
+  --color-blue-800: #2222ad;
+  --color-blue-900: #1b1b85;
+  --color-blue-950: #343a40;
+}
+
+html[data-color-palette="deep-teal"] {
+  --color-blue-50: #ebfdfe;
+  --color-blue-100: #d3f7f9;
+  --color-blue-200: #a9edf0;
+  --color-blue-300: #70dce1;
+  --color-blue-400: #36c5cd;
+  --color-blue-500: #13b2bb;
+  --color-blue-600: #07a7af;
+  --color-blue-700: #057e84;
+  --color-blue-800: #04676c;
+  --color-blue-900: #034f54;
+  --color-blue-950: #022a2c;
+}
+
+html[data-color-palette="tangerine"] {
+  --color-blue-50: #fff7ed;
+  --color-blue-100: #ffedd5;
+  --color-blue-200: #fed7aa;
+  --color-blue-300: #fdba74;
+  --color-blue-400: #fb923c;
+  --color-blue-500: #f9842d;
+  --color-blue-600: #f97316;
+  --color-blue-700: #c95d12;
+  --color-blue-800: #9f4a13;
+  --color-blue-900: #7f3c14;
+  --color-blue-950: #1e293b;
+}
+
+html[data-color-palette] {
+  --color-indigo-50: var(--color-blue-50);
+  --color-indigo-100: var(--color-blue-100);
+  --color-indigo-200: var(--color-blue-200);
+  --color-indigo-300: var(--color-blue-300);
+  --color-indigo-400: var(--color-blue-400);
+  --color-indigo-500: var(--color-blue-500);
+  --color-indigo-600: var(--color-blue-600);
+  --color-indigo-700: var(--color-blue-700);
+  --color-indigo-800: var(--color-blue-800);
+  --color-indigo-900: var(--color-blue-900);
+  --color-indigo-950: var(--color-blue-950);
+}
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased font-sans transition-colors duration-200;
