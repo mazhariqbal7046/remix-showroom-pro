@@ -58,9 +58,7 @@ export const AdminOverviewPage = () => {
   ];
 
   const planDistribution = [
-    { name: 'Basic (Max 2)', count: adminShowrooms.filter(s => s.plan === 'basic').length, color: '#3b82f6' },
-    { name: 'Business (Max 6)', count: adminShowrooms.filter(s => s.plan === 'business').length, color: '#6366f1' },
-    { name: 'Enterprise (Unlim)', count: adminShowrooms.filter(s => s.plan === 'enterprise').length, color: '#10b981' },
+    { name: 'Showroom Pro · Rs. 10,000/month', count: adminShowrooms.length, color: '#185df1' },
   ];
 
   return (
@@ -170,7 +168,7 @@ export const AdminOverviewPage = () => {
         <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-white mb-1">Showroom Plan Distribution</h3>
-            <p className="text-xs text-slate-400 mb-4">Tenants by subscription tier</p>
+            <p className="text-xs text-slate-400 mb-4">Showrooms on the single subscription plan</p>
 
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">

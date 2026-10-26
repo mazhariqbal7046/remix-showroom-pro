@@ -39,18 +39,30 @@ export const AppProvider = ({ children }) => {
       return fallback;
     }
   };
+  const loadArray = (key, fallback) => {
+    const value = loadLocal(key, fallback);
+    return Array.isArray(value) ? value : fallback;
+  };
 
   // State
   const [showroomInfo, setShowroomInfo] = useState(() => loadLocal('showroom_info', INITIAL_SHOWROOM_INFO));
   const [userProfile, setUserProfile] = useState(() => loadLocal('user_profile', INITIAL_USER_PROFILE));
   const [subscription, setSubscription] = useState(() => {
     const stored = loadLocal('subscription', null);
-    return stored?.planId === 'showroom' ? stored : INITIAL_SUBSCRIPTION;
+    return stored?.planId === 'showroom'
+      ? {
+          ...stored,
+          billingInterval: 'monthly',
+          lastPaymentAmount: PLANS_CONFIG[0].monthlyPrice,
+          invoices: (Array.isArray(stored.invoices) ? stored.invoices : INITIAL_SUBSCRIPTION.invoices).map((invoice) => ({
+            ...invoice,
+            plan: 'Showroom Pro',
+            amount: PLANS_CONFIG[0].monthlyPrice,
+          })),
+        }
+      : INITIAL_SUBSCRIPTION;
   });
-  const [plans, setPlans] = useState(() => {
-    const stored = loadLocal('plans', null);
-    return stored?.some((plan) => plan.id === 'showroom') ? stored : PLANS_CONFIG;
-  });
+  const [plans, setPlans] = useState(PLANS_CONFIG);
   const [customers, setCustomers] = useState(() => loadLocal('customers', INITIAL_CUSTOMERS));
   const [products, setProducts] = useState(() => loadLocal('products', INITIAL_PRODUCTS));
   const [suppliers, setSuppliers] = useState(() => loadLocal('suppliers', INITIAL_SUPPLIERS));
@@ -58,9 +70,29 @@ export const AppProvider = ({ children }) => {
   const [purchases, setPurchases] = useState(() => loadLocal('purchases', INITIAL_PURCHASES));
   const [partners, setPartners] = useState(() => loadLocal('partners', INITIAL_PARTNERS));
   const [expenses, setExpenses] = useState(() => loadLocal('expenses', INITIAL_EXPENSES));
-  const [notifications, setNotifications] = useState(() => loadLocal('notifications', INITIAL_NOTIFICATIONS));
-  const [adminShowrooms, setAdminShowrooms] = useState(() => loadLocal('admin_showrooms', INITIAL_ADMIN_SHOWROOMS));
-  const [adminPayments, setAdminPayments] = useState(() => loadLocal('admin_payments', INITIAL_ADMIN_PAYMENTS));
+  const [notifications, setNotifications] = useState(() =>
+    loadArray('notifications', INITIAL_NOTIFICATIONS).map((notification) => (
+      notification.title === 'Partner Slot Alert'
+        ? { ...notification, title: 'Partner Accounts Included', message: 'Unlimited showroom partner accounts are included in your Showroom Pro plan.' }
+        : notification
+    ))
+  );
+  const [adminShowrooms, setAdminShowrooms] = useState(() =>
+    loadArray('admin_showrooms', INITIAL_ADMIN_SHOWROOMS).map((showroom) => ({
+      ...showroom,
+      plan: 'showroom',
+      planName: 'Showroom Pro',
+      partnerLimit: null,
+      mrr: ['Active', 'Expiring Soon'].includes(showroom.status) ? PLANS_CONFIG[0].monthlyPrice : 0,
+    }))
+  );
+  const [adminPayments, setAdminPayments] = useState(() =>
+    loadArray('admin_payments', INITIAL_ADMIN_PAYMENTS).map((payment) => ({
+      ...payment,
+      plan: 'Showroom Pro',
+      amount: PLANS_CONFIG[0].monthlyPrice,
+    }))
+  );
   const [adminLogs, setAdminLogs] = useState(() => loadLocal('admin_logs', INITIAL_ADMIN_LOGS));
   const [platformSettings, setPlatformSettings] = useState(() => loadLocal('platform_settings', INITIAL_PLATFORM_SETTINGS));
   const [bookings, setBookings] = useState(() => loadLocal('bookings', INITIAL_BOOKINGS));
@@ -148,37 +180,20 @@ export const AppProvider = ({ children }) => {
     return plans.find(p => p.id === subscription.planId) || plans[0];
   }, [plans, subscription.planId]);
 
-  // Partner Limit Rules Evaluation
-  // Rule: Basic = 2, Business = 6, Enterprise = Unlimited
+  // The one Showroom Pro subscription includes unlimited partner accounts.
   const partnerLimitInfo = useMemo(() => {
     const count = partners.length;
-    const limit = activePlan.partnerLimit;
-    const isUnlimited = activePlan.isUnlimitedPartners || limit === null;
-    const remaining = isUnlimited ? Infinity : Math.max(0, limit - count);
-    const isLimitReached = !isUnlimited && count >= limit;
-
-    let displayLimitText = isUnlimited
-      ? `${count} active partners (Unlimited Plan)`
-      : `${count} of ${limit} partner slots used`;
-
-    let warningMessage = null;
-    if (isLimitReached) {
-      warningMessage = `You have reached the maximum limit of ${limit} partners on the ${activePlan.name}. Upgrade your subscription to invite additional showroom partners.`;
-    } else if (!isUnlimited && remaining === 1) {
-      warningMessage = `Only 1 partner slot remaining on your ${activePlan.name}.`;
-    }
-
     return {
       count,
-      limit,
-      isUnlimited,
-      remaining,
-      isLimitReached,
-      displayLimitText,
-      warningMessage,
-      canAddPartner: !isLimitReached,
+      limit: null,
+      isUnlimited: true,
+      remaining: Infinity,
+      isLimitReached: false,
+      displayLimitText: `${count} active partner accounts · Unlimited included`,
+      warningMessage: null,
+      canAddPartner: true,
     };
-  }, [partners.length, activePlan]);
+  }, [partners.length]);
 
   // Financial & Inventory Aggregations
   const dashboardStats = useMemo(() => {
@@ -432,11 +447,8 @@ export const AppProvider = ({ children }) => {
     return newPur;
   };
 
-  // Partners Actions with STRICT Partner Limit check
+  // Partner accounts are unlimited on the single subscription plan.
   const addPartner = (partnerData) => {
-    if (!partnerLimitInfo.canAddPartner) {
-      throw new Error(partnerLimitInfo.warningMessage);
-    }
     const newPartner = {
       ...partnerData,
       id: `PART-${String(partners.length + 1).padStart(3, '0')}`,
@@ -494,16 +506,16 @@ export const AppProvider = ({ children }) => {
   };
 
   // Subscription Actions
-  const updateSubscriptionPlan = (planId, billingInterval = 'monthly') => {
+  const updateSubscriptionPlan = (planId) => {
     const selectedPlan = plans.find(p => p.id === planId);
     if (!selectedPlan) return;
 
     const newSub = {
       ...subscription,
       planId,
-      billingInterval,
+      billingInterval: 'monthly',
       status: 'Active',
-      lastPaymentAmount: billingInterval === 'yearly' ? selectedPlan.yearlyPrice : selectedPlan.monthlyPrice,
+      lastPaymentAmount: selectedPlan.monthlyPrice,
       renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       invoices: [
@@ -511,7 +523,7 @@ export const AppProvider = ({ children }) => {
           id: `SUB-INV-${Math.floor(100 + Math.random() * 900)}`,
           date: new Date().toISOString().slice(0, 10),
           plan: selectedPlan.name,
-          amount: billingInterval === 'yearly' ? selectedPlan.yearlyPrice : selectedPlan.monthlyPrice,
+          amount: selectedPlan.monthlyPrice,
           status: 'Paid',
           receiptUrl: '#',
         },
@@ -520,7 +532,7 @@ export const AppProvider = ({ children }) => {
     };
     setSubscription(newSub);
     saveLocal('subscription', newSub);
-    if (showroomInfo?.id) void syncEntity('subscriptions', { ...newSub, monthlyAmount: billingInterval === 'yearly' ? selectedPlan.yearlyPrice : selectedPlan.monthlyPrice, startedAt: new Date().toISOString().slice(0, 10), nextBillingDate: newSub.renewalDate }, showroomInfo.id);
+    if (showroomInfo?.id) void syncEntity('subscriptions', { ...newSub, monthlyAmount: selectedPlan.monthlyPrice, startedAt: new Date().toISOString().slice(0, 10), nextBillingDate: newSub.renewalDate }, showroomInfo.id);
   };
 
   // Notifications Actions
@@ -622,26 +634,6 @@ export const AppProvider = ({ children }) => {
     });
     setAdminShowrooms(updated);
     saveLocal('admin_showrooms', updated);
-  };
-
-  const updatePlanConfig = (planId, updatedFields) => {
-    const updated = plans.map(p => {
-      if (p.id === planId) {
-        // Enforce hard rules for partner limits
-        let enforcedLimit = p.partnerLimit;
-        if (p.id === 'showroom') enforcedLimit = null;
-
-        return {
-          ...p,
-          ...updatedFields,
-          partnerLimit: enforcedLimit,
-          isUnlimitedPartners: p.id === 'showroom',
-        };
-      }
-      return p;
-    });
-    setPlans(updated);
-    saveLocal('plans', updated);
   };
 
   // Reset all demo data to pristine state
@@ -767,7 +759,6 @@ export const AppProvider = ({ children }) => {
     updateShowroomSettings,
     updateUserProfile,
     toggleShowroomStatus,
-    updatePlanConfig,
     resetDemoData,
     formatAmount,
     signIn,

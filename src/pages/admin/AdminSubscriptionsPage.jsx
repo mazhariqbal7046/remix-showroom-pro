@@ -48,7 +48,7 @@ export const AdminSubscriptionsPage = () => {
       [
         { key: 'name', label: 'Showroom' },
         { key: 'planName', label: 'Plan' },
-        { key: 'partnerLimit', label: 'Partner Quota' },
+        { key: 'activePartners', label: 'Active Partner Accounts' },
         { key: 'mrr', label: 'Monthly Amount' },
         { key: 'status', label: 'Status' },
         { key: 'registeredDate', label: 'Start Date' },
@@ -65,7 +65,7 @@ export const AdminSubscriptionsPage = () => {
             Tenant Subscriptions Control
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Monitor tenant licensing tiers, renewals, partner quotas, and payment statuses.
+            Monitor showroom subscriptions, renewals, partner accounts, and payment statuses.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export const AdminSubscriptionsPage = () => {
       <SearchFilterBar
         searchQuery={search}
         onSearchChange={setSearch}
-        placeholder="Search by showroom or plan tier..."
+        placeholder="Search by showroom or plan..."
         filterOptions={[
           { label: 'All Statuses', value: 'all' },
           { label: 'Active', value: 'Active' },
@@ -97,8 +97,8 @@ export const AdminSubscriptionsPage = () => {
             <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
               <tr>
                 <th className="py-3.5 px-6 font-semibold">Tenant Showroom</th>
-                <th className="py-3.5 px-6 font-semibold">Plan Tier</th>
-                <th className="py-3.5 px-6 font-semibold">Partner Allocation</th>
+                <th className="py-3.5 px-6 font-semibold">Plan</th>
+                <th className="py-3.5 px-6 font-semibold">Partner Accounts</th>
                 <th className="py-3.5 px-6 font-semibold">Billing Interval</th>
                 <th className="py-3.5 px-6 font-semibold">Monthly MRR</th>
                 <th className="py-3.5 px-6 font-semibold">Licensing Status</th>
@@ -117,9 +117,7 @@ export const AdminSubscriptionsPage = () => {
                     </span>
                   </td>
                   <td className="py-4 px-6 text-slate-300">
-                    {sub.partnerLimit === null
-                      ? 'Unlimited Partners'
-                      : `Max ${sub.partnerLimit} Partners (${sub.activePartners} used)`}
+                    {sub.activePartners} active · Unlimited included
                   </td>
                   <td className="py-4 px-6 text-slate-400">
                     Monthly Renewal

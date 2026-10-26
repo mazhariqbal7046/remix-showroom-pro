@@ -31,22 +31,21 @@ export const AdminRevenuePage = () => {
   const { adminShowrooms, formatAmount } = useApp();
   const { toast } = useToast();
 
-  const totalMRR = adminShowrooms.reduce((sum, s) => sum + (Number(s.mrr) || 0), 0);
+  const subscribedShowrooms = adminShowrooms.filter((showroom) => ['Active', 'Expiring Soon'].includes(showroom.status)).length;
+  const totalMRR = subscribedShowrooms * 10000;
   const arr = totalMRR * 12;
 
   const monthlyRevenueTrend = [
-    { month: 'May 2026', revenue: 98000, basic: 14000, business: 35000, enterprise: 49000 },
-    { month: 'Jun 2026', revenue: 133000, basic: 28000, business: 35000, enterprise: 70000 },
-    { month: 'Jul 2026', revenue: 168000, basic: 28000, business: 70000, enterprise: 70000 },
-    { month: 'Aug 2026', revenue: 182000, basic: 42000, business: 70000, enterprise: 70000 },
-    { month: 'Sep 2026', revenue: 203000, basic: 28000, business: 105000, enterprise: 70000 },
-    { month: 'Oct 2026', revenue: totalMRR, basic: 28000, business: 105000, enterprise: 75000 },
+    { month: 'May 2026', revenue: 98000 },
+    { month: 'Jun 2026', revenue: 133000 },
+    { month: 'Jul 2026', revenue: 168000 },
+    { month: 'Aug 2026', revenue: 182000 },
+    { month: 'Sep 2026', revenue: 203000 },
+    { month: 'Oct 2026', revenue: totalMRR },
   ];
 
   const planRevenueBreakdown = [
-    { name: 'Enterprise Plan', value: 75000, color: '#10b981' },
-    { name: 'Business Plan', value: 105000, color: '#6366f1' },
-    { name: 'Basic Plan', value: 28000, color: '#3b82f6' },
+    { name: 'Showroom Pro · Rs. 10,000/month', value: totalMRR, color: '#185df1' },
   ];
 
   return (
@@ -57,7 +56,7 @@ export const AdminRevenuePage = () => {
             Platform Revenue Analytics
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            SaaS subscription recurring revenue, tier contributions, and ARR projections.
+            SaaS subscription revenue from the single Rs. 10,000 monthly plan.
           </p>
         </div>
 
@@ -119,7 +118,7 @@ export const AdminRevenuePage = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-base font-bold text-white">Monthly Subscription Revenue Trend</h3>
-            <p className="text-xs text-slate-400">Historical performance across all tier segments</p>
+            <p className="text-xs text-slate-400">Historical subscription revenue</p>
           </div>
           <Badge variant="indigo" size="sm">Simulated MRR</Badge>
         </div>
@@ -150,8 +149,8 @@ export const AdminRevenuePage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
           <div>
-            <h3 className="text-base font-bold text-white mb-1">Revenue by Subscription Tier</h3>
-            <p className="text-xs text-slate-400 mb-4">Relative share of monthly income</p>
+            <h3 className="text-base font-bold text-white mb-1">Revenue from the Single Plan</h3>
+            <p className="text-xs text-slate-400 mb-4">Every subscribed showroom pays the same monthly rate.</p>
 
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -192,40 +191,18 @@ export const AdminRevenuePage = () => {
         </div>
 
         <div className="lg:col-span-2 bg-slate-950 p-6 rounded-2xl border border-slate-800">
-          <h3 className="text-base font-bold text-white mb-1">Tier Pricing & Partner Quota Economics</h3>
-          <p className="text-xs text-slate-400 mb-4">How partner allocations correlate with MRR yields</p>
+          <h3 className="text-base font-bold text-white mb-1">Showroom Pro Subscription</h3>
+          <p className="text-xs text-slate-400 mb-4">All features and unlimited partner accounts are included.</p>
 
           <div className="space-y-3 text-xs">
             <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center">
               <div>
-                <span className="font-bold text-white">Basic Plan (Max 2 Partners)</span>
-                <p className="text-[11px] text-slate-400">Entry level tier for boutique showrooms</p>
+                <span className="font-bold text-white">One plan · Unlimited partner accounts</span>
+                <p className="text-[11px] text-slate-400">Same monthly rate for every showroom</p>
               </div>
               <div className="text-right">
-                <span className="font-bold text-blue-400">Rs. 14,000 / mo</span>
-                <span className="block text-[10px] text-slate-400">2 Active Tenants</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center">
-              <div>
-                <span className="font-bold text-white">Business Plan (Max 6 Partners)</span>
-                <p className="text-[11px] text-slate-400">Core growth tier with high multi-partner adoption</p>
-              </div>
-              <div className="text-right">
-                <span className="font-bold text-indigo-400">Rs. 35,000 / mo</span>
-                <span className="block text-[10px] text-slate-400">3 Active Tenants</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex justify-between items-center">
-              <div>
-                <span className="font-bold text-white">Enterprise Plan (Unlimited Partners)</span>
-                <p className="text-[11px] text-slate-400">High LTV multi-location dealer tier</p>
-              </div>
-              <div className="text-right">
-                <span className="font-bold text-emerald-400">Rs. 75,000 / mo</span>
-                <span className="block text-[10px] text-slate-400">1 Active Tenant</span>
+                <span className="font-bold text-blue-400">Rs. 10,000 / mo</span>
+                <span className="block text-[10px] text-slate-400">{subscribedShowrooms} Subscribed Showrooms</span>
               </div>
             </div>
           </div>

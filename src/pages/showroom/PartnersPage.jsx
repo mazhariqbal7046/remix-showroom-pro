@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import {
   UserCheck,
   Plus,
@@ -10,11 +9,8 @@ import {
   Phone,
   Mail,
   ShieldCheck,
-  AlertTriangle,
-  Sparkles,
   PieChart,
   Calendar,
-  Lock,
   ArrowRight,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -28,7 +24,6 @@ import { formatDate } from '../../utils/formatters';
 export const PartnersPage = () => {
   const {
     partners,
-    activePlan,
     partnerLimitInfo,
     addPartner,
     updatePartner,
@@ -68,10 +63,6 @@ export const PartnersPage = () => {
   }, [partners, search]);
 
   const openAddPartner = () => {
-    if (!partnerLimitInfo.canAddPartner) {
-      toast.warning(partnerLimitInfo.warningMessage, 'Partner Quota Full');
-      return;
-    }
     setEditingPartner(null);
     setFormData({
       fullName: '',
@@ -157,84 +148,37 @@ export const PartnersPage = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant={partnerLimitInfo.isLimitReached ? 'outline' : 'primary'}
-            icon={partnerLimitInfo.isLimitReached ? Lock : Plus}
-            disabled={partnerLimitInfo.isLimitReached}
-            onClick={openAddPartner}
-          >
-            {partnerLimitInfo.isLimitReached ? 'Partner Limit Reached' : 'Add Partner'}
+          <Button variant="primary" icon={Plus} onClick={openAddPartner}>
+            Add Partner
           </Button>
-
-          {partnerLimitInfo.isLimitReached && (
-            <Link to="/subscription">
-              <Button variant="primary" icon={Sparkles}>
-                Upgrade Plan
-              </Button>
-            </Link>
-          )}
         </div>
       </div>
 
       {/* PARTNER LIMITS NOTIFICATION / STAT CARD */}
-      <div className={`p-5 rounded-2xl border shadow-xs transition-all ${
-        partnerLimitInfo.isLimitReached
-          ? 'bg-rose-50/80 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-      }`}>
+      <div className="p-5 rounded-2xl border shadow-xs transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              partnerLimitInfo.isLimitReached
-                ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400'
-                : 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400'
-            }`}>
-              {partnerLimitInfo.isLimitReached ? <AlertTriangle className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Partner Slot Allocation: {activePlan.name}
+                  Partner Access: Included in Showroom Pro
                 </h3>
-                <Badge variant={partnerLimitInfo.isLimitReached ? 'danger' : 'indigo'} size="sm">
-                  {partnerLimitInfo.isUnlimited
-                    ? 'Unlimited Plan'
-                    : partnerLimitInfo.isLimitReached
-                    ? 'Limit Reached'
-                    : `${partnerLimitInfo.remaining} Slots Left`}
-                </Badge>
+                <Badge variant="indigo" size="sm">Unlimited included</Badge>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                {partnerLimitInfo.displayLimitText}.
-                {' '}
-                {partnerLimitInfo.isLimitReached
-                  ? 'To add more showroom partners, please upgrade your subscription.'
-                  : 'Fixed rules: Basic (Max 2), Business (Max 6), Enterprise (Unlimited).'}
+                {partnerLimitInfo.displayLimitText}. Unlimited showroom partner accounts are included in the Rs. 10,000 monthly plan.
               </p>
             </div>
           </div>
 
           <div className="w-full md:w-64 space-y-1.5 self-end md:self-auto">
             <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-              <span>Capacity Usage</span>
-              <span>
-                {partnerLimitInfo.isUnlimited
-                  ? 'Unlimited'
-                  : `${Math.round((partnerLimitInfo.count / partnerLimitInfo.limit) * 100)}%`}
-              </span>
+              <span>Partner Accounts</span>
+              <span>Unlimited</span>
             </div>
-            {!partnerLimitInfo.isUnlimited && (
-              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    partnerLimitInfo.isLimitReached ? 'bg-rose-600' : 'bg-blue-600'
-                  }`}
-                  style={{
-                    width: `${Math.min(100, (partnerLimitInfo.count / partnerLimitInfo.limit) * 100)}%`,
-                  }}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -311,7 +255,7 @@ export const PartnersPage = () => {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingPartner ? 'Edit Partner Profile' : 'Add Showroom Partner'}
-        subtitle={`Current allocation: ${partnerLimitInfo.displayLimitText}`}
+        subtitle="Unlimited partner accounts are included in your monthly plan."
         maxWidth="max-w-md"
       >
         <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -403,7 +347,7 @@ export const PartnersPage = () => {
               Cancel
             </Button>
             <Button type="submit" variant="primary">
-              {editingPartner ? 'Update Partner' : 'Confirm & Allocate Slot'}
+              {editingPartner ? 'Update Partner' : 'Add Partner'}
             </Button>
           </div>
         </form>
@@ -414,8 +358,8 @@ export const PartnersPage = () => {
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
-        title="Remove Partner Slot?"
-        message={`Are you sure you want to remove ${deleteTarget?.fullName}? This will release 1 partner slot back to your showroom quota.`}
+        title="Remove Partner?"
+        message={`Are you sure you want to remove ${deleteTarget?.fullName} from this showroom?`}
         confirmText="Remove Partner"
         variant="danger"
       />

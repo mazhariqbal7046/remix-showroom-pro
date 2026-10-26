@@ -25,7 +25,7 @@ export const PublicLayout = () => {
   const navLinks = [
     { label: 'Overview', href: '/#features' },
     { label: 'Capabilities', href: '/#benefits' },
-    { label: 'Pricing Plans', href: '/pricing' },
+    { label: 'Pricing', href: '/pricing' },
     { label: 'FAQs', href: '/#faqs' },
   ];
 
@@ -87,7 +87,7 @@ export const PublicLayout = () => {
                 location.pathname === '/pricing' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
               }`}
             >
-              Subscription Pricing
+              Pricing
             </Link>
             <a
               href="/#features"
@@ -167,7 +167,7 @@ export const PublicLayout = () => {
               onClick={() => setMobileMenuOpen(false)}
               className="block py-2 text-base font-medium text-slate-800 dark:text-slate-200"
             >
-              Subscription Pricing
+              Pricing
             </Link>
             <Link
               to="/login"
@@ -230,7 +230,7 @@ export const PublicLayout = () => {
               </h4>
               <ul className="space-y-2.5 text-sm">
                 <li><Link to="/dashboard" className="hover:text-white transition-colors">Showroom Dashboard</Link></li>
-                <li><Link to="/pricing" className="hover:text-white transition-colors">Pricing Plans</Link></li>
+                <li><Link to="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
                 <li><Link to="/inventory" className="hover:text-white transition-colors">Inventory Control</Link></li>
                 <li><Link to="/sales" className="hover:text-white transition-colors">Point of Sale</Link></li>
                 <li><Link to="/partners" className="hover:text-white transition-colors">Partner Allocation</Link></li>
@@ -242,12 +242,12 @@ export const PublicLayout = () => {
                 Plans & Partners
               </h4>
               <ul className="space-y-2.5 text-sm">
-                <li><span className="text-slate-300 font-medium">Basic:</span> Max 2 Partners</li>
-                <li><span className="text-slate-300 font-medium">Business:</span> Max 6 Partners</li>
-                <li><span className="text-slate-300 font-medium">Enterprise:</span> Unlimited</li>
+                <li><span className="text-slate-300 font-medium">Showroom Pro:</span> Rs. 10,000 / month</li>
+                <li>All core showroom features included</li>
+                <li>Unlimited partner accounts</li>
                 <li className="pt-2">
                   <Link to="/pricing" className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1">
-                    Compare Limits <ArrowRight className="w-3 h-3" />
+                    View plan details <ArrowRight className="w-3 h-3" />
                   </Link>
                 </li>
               </ul>
@@ -271,7 +271,7 @@ export const PublicLayout = () => {
             <div className="flex items-center gap-6">
               <span>Demo Frontend Mode</span>
               <span>Initial Currency: PKR</span>
-              <span>Fixed Partner Tiers: 2 / 6 / Unlimited</span>
+              <span>One Plan: Rs. 10,000 / month</span>
             </div>
           </div>
         </div>

@@ -77,7 +77,7 @@ export const AdminShowroomsPage = () => {
         { key: 'city', label: 'City' },
         { key: 'planName', label: 'Plan' },
         { key: 'activePartners', label: 'Active Partners' },
-        { key: 'partnerLimit', label: 'Partner Quota' },
+        { key: 'activePartners', label: 'Active Partner Accounts' },
         { key: 'mrr', label: 'Monthly MRR' },
         { key: 'status', label: 'Tenant Status' },
       ]
@@ -162,9 +162,7 @@ export const AdminShowroomsPage = () => {
                       {shw.planName}
                     </span>
                     <div className="text-[11px] text-slate-400">
-                      {shw.partnerLimit === null
-                        ? `${shw.activePartners} Partners (Unlimited)`
-                        : `${shw.activePartners} / ${shw.partnerLimit} Slots`}
+                      {shw.activePartners} active · Unlimited included
                     </div>
                   </td>
                   <td className="py-4 px-6 font-bold text-emerald-400">

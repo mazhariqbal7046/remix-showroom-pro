@@ -54,7 +54,7 @@ export const NotificationsPage = () => {
             Activity & System Notifications
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Real-time alerts for low stock levels, subscription renewals, and partner quota notices.
+            Real-time alerts for low stock levels, subscription renewals, and showroom activity.
           </p>
         </div>
 

@@ -78,7 +78,7 @@ export const LandingPage = () => {
             </span>
             <span className="flex items-center gap-1.5">
               <Check className="w-4 h-4 text-emerald-500" />
-              Strict Partner Limit Enforcement
+              Unlimited Partner Accounts Included
             </span>
           </div>
         </div>
@@ -97,7 +97,7 @@ export const LandingPage = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="success" size="sm">Active Demo Session</Badge>
-                  <Badge variant="indigo" size="sm">Business Plan (4/6 Partners)</Badge>
+                  <Badge variant="indigo" size="sm">Showroom Pro · Rs. 10,000/month</Badge>
                 </div>
               </div>
 
@@ -120,8 +120,8 @@ export const LandingPage = () => {
                 </div>
                 <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
                   <span className="text-[11px] text-slate-400 uppercase font-semibold">Partner Allocation</span>
-                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">4 of 6 Slots</div>
-                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">2 Slots Available</span>
+                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">Unlimited</div>
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Included in one plan</span>
                 </div>
               </div>
 
@@ -182,13 +182,13 @@ export const LandingPage = () => {
                 <Users className="w-6 h-6" />
               </div>
               <h4 className="text-base font-semibold text-slate-900 dark:text-white mb-2">
-                Partner Equity & Limits
+                Partner Management & Equity
               </h4>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
-                Built-in quotas for multiple partners. Strictly enforces tier limits (Basic: 2, Business: 6, Enterprise: Unlimited).
+                Add every showroom partner with unlimited partner accounts included in one monthly plan.
               </p>
               <ul className="text-xs space-y-2 text-slate-600 dark:text-slate-300">
-                <li className="flex items-center gap-2">✓ Clear usage counters ("4 of 6 used")</li>
+                <li className="flex items-center gap-2">✓ Unlimited partner accounts included</li>
                 <li className="flex items-center gap-2">✓ Role assignment (Commercial, Imports, Finance)</li>
                 <li className="flex items-center gap-2">✓ Equity share distribution tracking</li>
               </ul>
@@ -294,8 +294,8 @@ export const LandingPage = () => {
                   <span className="text-emerald-600 font-semibold">Included</span>
                 </div>
                 <div className="py-2.5 flex items-center justify-between">
-                  <span className="text-slate-600 dark:text-slate-300">Partner Limits (2 / 6 / Unlimited)</span>
-                  <span className="text-emerald-600 font-semibold">Enforced</span>
+                  <span className="text-slate-600 dark:text-slate-300">Partner accounts</span>
+                  <span className="text-emerald-600 font-semibold">Unlimited · Included</span>
                 </div>
                 <div className="py-2.5 flex items-center justify-between">
                   <span className="text-slate-600 dark:text-slate-300">Expenses by Category</span>
@@ -322,86 +322,37 @@ export const LandingPage = () => {
             Transparent Pricing
           </span>
           <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-4">
-            Plans built to scale with your showroom size
+            One complete plan for every showroom
           </h3>
           <p className="text-slate-600 dark:text-slate-400 text-sm max-w-xl mx-auto mb-12">
-            Every plan includes complete core showroom operations. Tiers are cleanly separated by business scale and partner allocations.
+            All showroom operations, partner finance, reports, and EV bike management for one fixed monthly price.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-            {/* Basic Plan */}
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Starter</span>
-                <h4 className="text-xl font-bold text-slate-900 dark:text-white mt-1">Basic Plan</h4>
-                <p className="text-xs text-slate-500 mt-1 mb-4">For small showrooms & boutique stores.</p>
-                <div className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1">
-                  Rs. 14,000 <span className="text-xs font-normal text-slate-500">/month (Demo)</span>
+          <div className="max-w-3xl mx-auto text-left">
+            <div className="rounded-2xl border-2 border-blue-600 bg-white dark:bg-slate-900 p-7 sm:p-9 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">One plan · All features</span>
+                  <h4 className="text-2xl font-bold text-slate-900 dark:text-white mt-2">Showroom Pro</h4>
+                  <p className="text-sm text-slate-500 mt-2">Complete EV bike showroom operations for every business size.</p>
                 </div>
-                <div className="my-4 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-xs font-semibold text-blue-700 dark:text-blue-300">
-                  Fixed Quota: Maximum 2 Partners
+                <div className="shrink-0 sm:text-right">
+                  <div className="text-3xl font-extrabold text-slate-900 dark:text-white">Rs. 10,000</div>
+                  <div className="text-xs text-slate-500">per showroom / month</div>
                 </div>
-                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                  <li className="flex items-center gap-2">✓ Full Showroom Dashboard</li>
-                  <li className="flex items-center gap-2">✓ Customer & Product Management</li>
-                  <li className="flex items-center gap-2">✓ Sales Records & Invoices</li>
-                  <li className="flex items-center gap-2">✓ Expense Tracking</li>
-                </ul>
               </div>
-              <Link to="/pricing" className="mt-6 block">
-                <Button variant="secondary" className="w-full">Explore Basic</Button>
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <span>✓ Unlimited partner accounts</span>
+                <span>✓ Customers, EV bikes & inventory</span>
+                <span>✓ Bookings, receipts & quotations</span>
+                <span>✓ Sales, purchases & suppliers</span>
+                <span>✓ Partner finance & settlements</span>
+                <span>✓ Profit, daily & monthly reports</span>
+              </div>
+              <Link to="/signup" className="mt-7 block sm:max-w-xs">
+                <Button variant="primary" className="w-full">Get Showroom Pro</Button>
               </Link>
-            </div>
-
-            {/* Business Plan */}
-            <div className="p-6 rounded-2xl border-2 border-blue-600 bg-white dark:bg-slate-900 flex flex-col justify-between shadow-xl relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider">
-                Most Popular
-              </div>
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Growth</span>
-                <h4 className="text-xl font-bold text-slate-900 dark:text-white mt-1">Business Plan</h4>
-                <p className="text-xs text-slate-500 mt-1 mb-4">For established commercial showrooms.</p>
-                <div className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1">
-                  Rs. 35,000 <span className="text-xs font-normal text-slate-500">/month (Demo)</span>
-                </div>
-                <div className="my-4 p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/60 border border-blue-300 dark:border-blue-700 text-xs font-semibold text-blue-800 dark:text-blue-200">
-                  Fixed Quota: Maximum 6 Partners
-                </div>
-                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                  <li className="flex items-center gap-2">✓ All Basic Features</li>
-                  <li className="flex items-center gap-2">✓ Advanced Analytics & KPI Dashboard</li>
-                  <li className="flex items-center gap-2">✓ Detailed Financial & Profit Reports</li>
-                  <li className="flex items-center gap-2">✓ Supplier & Purchase Order Tracking</li>
-                </ul>
-              </div>
-              <Link to="/pricing" className="mt-6 block">
-                <Button variant="primary" className="w-full">Select Business</Button>
-              </Link>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col justify-between">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Large Scale</span>
-                <h4 className="text-xl font-bold text-slate-900 dark:text-white mt-1">Enterprise Plan</h4>
-                <p className="text-xs text-slate-500 mt-1 mb-4">Multi-branch and high-volume dealers.</p>
-                <div className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1">
-                  Rs. 75,000 <span className="text-xs font-normal text-slate-500">/month (Demo)</span>
-                </div>
-                <div className="my-4 p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                  Partner Quota: Unlimited Partners
-                </div>
-                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                  <li className="flex items-center gap-2">✓ All Business Features</li>
-                  <li className="flex items-center gap-2">✓ Unlimited Partner Accounts</li>
-                  <li className="flex items-center gap-2">✓ Multi-branch Architecture Ready</li>
-                  <li className="flex items-center gap-2">✓ Custom Templates & 24/7 SLA</li>
-                </ul>
-              </div>
-              <Link to="/pricing" className="mt-6 block">
-                <Button variant="secondary" className="w-full">Explore Enterprise</Button>
-              </Link>
+              <p className="mt-4 text-[11px] text-slate-400">Online payment processing will be enabled when a payment provider is connected.</p>
             </div>
           </div>
 
@@ -428,10 +379,10 @@ export const LandingPage = () => {
           <div className="space-y-4">
             <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
               <h5 className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                What are the strict partner limits on each plan?
+                How many partners are included?
               </h5>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Basic Plan allows a maximum of 2 partners. Business Plan allows a maximum of 6 partners. Enterprise Plan has no fixed partner limit (unlimited partners). When you reach your quota, the platform prevents adding additional partners until you upgrade.
+                Unlimited showroom partner accounts are included in the single Showroom Pro plan. There are no partner-based tiers or upgrade limits.
               </p>
             </div>
 

@@ -180,7 +180,7 @@ export const ShowroomLayout = () => {
           ))}
         </div>
 
-        {/* Subscription Plan & Partner Limit Status Card */}
+        {/* Subscription Plan & Partner Accounts Status Card */}
         <div className="p-3 border-t border-slate-100 dark:border-slate-800">
           <div className="bg-slate-50 dark:bg-slate-800/70 rounded-xl p-3 border border-slate-200/80 dark:border-slate-700/60">
             <div className="flex items-center justify-between mb-1">
@@ -192,7 +192,7 @@ export const ShowroomLayout = () => {
               </Badge>
             </div>
 
-            {/* Partner Limit rule indicator */}
+            {/* Included partner accounts */}
             <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               <div className="flex justify-between mb-1">
                 <span>Partners:</span>
@@ -220,7 +220,7 @@ export const ShowroomLayout = () => {
               to="/subscription"
               className="mt-2.5 block text-center text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Manage / Upgrade Plan →
+              Manage Subscription →
             </Link>
           </div>
 

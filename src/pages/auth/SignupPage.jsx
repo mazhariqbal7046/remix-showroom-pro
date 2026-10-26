@@ -32,7 +32,6 @@ export const SignupPage = () => {
     businessCategory: 'Automotive Dealership',
     businessAddress: '',
     country: 'Pakistan',
-    selectedPlan: 'showroom',
     acceptTerms: false,
   });
 
@@ -73,7 +72,7 @@ export const SignupPage = () => {
       const result = await signUp({ email: formData.email, password: formData.password, metadata: { fullName: formData.fullName, phone: formData.phone, showroomName: formData.showroomName, businessCategory: formData.businessCategory, businessAddress: formData.businessAddress, country: formData.country } });
       updateShowroomSettings({ name: formData.showroomName, category: formData.businessCategory, address: formData.businessAddress, country: formData.country, email: formData.email, phone: formData.phone });
       updateUserProfile({ fullName: formData.fullName, email: formData.email, phone: formData.phone });
-      updateSubscriptionPlan(formData.selectedPlan, 'monthly');
+      updateSubscriptionPlan('showroom');
       toast.success(isSupabaseConfigured && !result?.data?.session ? 'Account created. Check your email to confirm before signing in.' : `Showroom "${formData.showroomName}" created! Welcome to Showroom Pro.`, 'Registration Complete');
       navigate(isSupabaseConfigured && !result?.data?.session ? '/login' : '/dashboard');
     } catch (error) {
@@ -97,7 +96,7 @@ export const SignupPage = () => {
             Create Your Showroom Account
           </h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-500">
-            Start with full access to customer CRM, inventory, POS, partner slots, and reports.
+            Start with the complete showroom system, unlimited partner accounts, and monthly billing at Rs. 10,000.
           </p>
         </div>
 
@@ -263,50 +262,36 @@ export const SignupPage = () => {
               </div>
             </div>
 
-            {/* Section 3: Subscription Plan Selection with FIXED Partner Limits */}
+            {/* Section 3: Single monthly subscription */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <h3 className="text-sm font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                <span>3. Select Initial Subscription Plan</span>
+                <span>3. Your Showroom Pro Plan</span>
               </h3>
               <p className="text-xs text-slate-400 mb-3">
                 One simple plan includes complete showroom operations and unlimited partners.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 max-w-md gap-3">
                 {plans.map((p) => {
-                  const isSelected = formData.selectedPlan === p.id;
                   return (
-                    <label
+                    <div
                       key={p.id}
-                      className={`relative p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/40 ring-2 ring-blue-600/30'
-                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                      }`}
+                      className="relative p-4 rounded-xl border border-blue-600 bg-blue-50/50 dark:bg-blue-950/40 ring-2 ring-blue-600/30 flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
                             {p.name}
                           </span>
-                          <input
-                            type="radio"
-                            name="selectedPlan"
-                            value={p.id}
-                            checked={isSelected}
-                            onChange={(e) => setFormData({ ...formData, selectedPlan: e.target.value })}
-                            className="text-blue-600 focus:ring-blue-500"
-                          />
+                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Rs. {Number(p.monthlyPrice).toLocaleString('en-PK')} / month</span>
                         </div>
-                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                          {p.isUnlimitedPartners ? 'Unlimited Partners' : `Max ${p.partnerLimit} Partners`}
-                        </div>
+                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">All features · Unlimited partners</div>
                       </div>
                       <div className="mt-3 text-[11px] text-slate-500">
                         {p.id === 'showroom' && 'Complete EV bike showroom office'}
                       </div>
-                    </label>
+                    </div>
                   );
                 })}
               </div>

@@ -114,7 +114,7 @@ export const DashboardPage = () => {
               </span>
             </div>
             <p className="text-xs text-blue-200 mt-1">
-              Partner Quota:{' '}
+              Partner Accounts:{' '}
               <span className="font-bold text-white">
                 {partnerLimitInfo.isUnlimited
                   ? `${partnerLimitInfo.count} Partners (Unlimited Plan)`

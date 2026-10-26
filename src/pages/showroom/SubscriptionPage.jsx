@@ -1,52 +1,32 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Sparkles,
   CreditCard,
   Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Users,
   ShieldCheck,
-  Download,
-  ArrowRight,
   RefreshCw,
   Clock,
-  Zap,
+  Users,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
-import { Modal } from '../../components/common/Modal';
 import { formatDate } from '../../utils/formatters';
 
 export const SubscriptionPage = () => {
   const {
     subscription,
     activePlan,
-    plans,
     partnerLimitInfo,
     updateSubscriptionPlan,
-    formatAmount,
   } = useApp();
 
   const { toast } = useToast();
 
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState(subscription.planId);
-  const [billingInterval, setBillingInterval] = useState(subscription.billingInterval || 'monthly');
-
   const handleSimulateRenewal = () => {
-    updateSubscriptionPlan(subscription.planId, subscription.billingInterval);
-    toast.success(`Simulated renewal processed for ${activePlan.name}. Renewal date extended.`, 'Payment Recorded');
-  };
-
-  const handleConfirmUpgrade = () => {
-    updateSubscriptionPlan(selectedPlanId, billingInterval);
-    const chosenPlan = plans.find(p => p.id === selectedPlanId);
-    toast.success(`Showroom successfully upgraded to ${chosenPlan?.name} (${billingInterval}).`, 'Subscription Updated');
-    setUpgradeModalOpen(false);
+    updateSubscriptionPlan(subscription.planId);
+    toast.info(`Demo renewal recorded for ${activePlan.name} at Rs. 10,000/month.`, 'Renewal Simulated');
   };
 
   return (
@@ -57,7 +37,7 @@ export const SubscriptionPage = () => {
             Subscription & Licensing
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage your showroom SaaS tier, partner limits, renewal dates, and billing receipts.
+            Your showroom has one fixed monthly plan with all core features and unlimited partner accounts.
           </p>
         </div>
 
@@ -65,9 +45,7 @@ export const SubscriptionPage = () => {
           <Button variant="secondary" icon={RefreshCw} onClick={handleSimulateRenewal}>
             Simulate Renewal
           </Button>
-          <Button variant="primary" icon={Sparkles} onClick={() => setUpgradeModalOpen(true)}>
-            Change / Upgrade Plan
-          </Button>
+          <Link to="/pricing" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">View plan details</Link>
         </div>
       </div>
 
@@ -85,7 +63,7 @@ export const SubscriptionPage = () => {
           <div>
             <div className="flex items-center gap-2.5 mb-1.5">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                Active SaaS Tier
+                Showroom Pro Plan
               </span>
               <Badge variant={getStatusBadgeVariant(subscription.status)} size="sm">
                 {subscription.status}
@@ -102,16 +80,12 @@ export const SubscriptionPage = () => {
           <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 text-right">
             <span className="text-[11px] text-slate-400 uppercase font-semibold">Current Billing Rate</span>
             <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
-              {formatAmount(
-                subscription.billingInterval === 'yearly'
-                  ? activePlan.yearlyPrice
-                  : activePlan.monthlyPrice
-              )}
+              Rs. {Number(activePlan.monthlyPrice).toLocaleString('en-PK')}
               <span className="text-xs text-slate-400 font-normal">
-                /{subscription.billingInterval}
+                /month
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">Auto-renews via Card (•••• 4242)</span>
+            <span className="text-[10px] text-slate-500">Online payment provider not connected yet</span>
           </div>
         </div>
 
@@ -120,10 +94,10 @@ export const SubscriptionPage = () => {
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2 text-slate-400 mb-1">
               <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-[11px] font-semibold uppercase">Partner Quota</span>
+              <span className="text-[11px] font-semibold uppercase">Partner Accounts</span>
             </div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              {partnerLimitInfo.isUnlimited ? 'Unlimited' : `${partnerLimitInfo.limit} Partners`}
+              Unlimited
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
               {partnerLimitInfo.displayLimitText}
@@ -139,7 +113,7 @@ export const SubscriptionPage = () => {
               {formatDate(subscription.renewalDate)}
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Billing cycle: {subscription.billingInterval}
+              Billing cycle: Monthly
             </div>
           </div>
 
@@ -230,80 +204,6 @@ export const SubscriptionPage = () => {
         </div>
       </div>
 
-      {/* Upgrade Plan Modal */}
-      <Modal
-        isOpen={upgradeModalOpen}
-        onClose={() => setUpgradeModalOpen(false)}
-        title="Upgrade or Switch Subscription Plan"
-        subtitle="Select a plan below to scale your showroom partner allocation."
-        maxWidth="max-w-2xl"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-xs mx-auto text-xs">
-            <button
-              onClick={() => setBillingInterval('monthly')}
-              className={`flex-1 py-1.5 rounded-lg font-semibold ${
-                billingInterval === 'monthly' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-xs' : 'text-slate-500'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingInterval('yearly')}
-              className={`flex-1 py-1.5 rounded-lg font-semibold ${
-                billingInterval === 'yearly' ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-xs' : 'text-slate-500'
-              }`}
-            >
-              Yearly (Save 17%)
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {plans.map((p) => {
-              const isSelected = selectedPlanId === p.id;
-              const price = billingInterval === 'yearly' ? p.yearlyPrice : p.monthlyPrice;
-
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedPlanId(p.id)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                    isSelected
-                      ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/40 ring-2 ring-blue-600/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{p.name}</h4>
-                      <Badge variant={p.id === 'enterprise' ? 'indigo' : 'primary'} size="sm">
-                        {p.isUnlimitedPartners ? 'Unlimited Partners' : `Max ${p.partnerLimit} Partners`}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-1">{p.description}</p>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="font-extrabold text-base text-slate-900 dark:text-white">
-                      {formatAmount(price)}
-                    </div>
-                    <span className="text-[10px] text-slate-400">/{billingInterval}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-            <Button variant="secondary" onClick={() => setUpgradeModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmUpgrade}>
-              Confirm Selection
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };

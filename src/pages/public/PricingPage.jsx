@@ -1,31 +1,19 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Check,
-  X,
-  Sparkles,
   Users,
-  Shield,
-  HelpCircle,
-  ArrowRight,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Badge } from '../../components/common/Badge';
 
 export const PricingPage = () => {
-  const { plans, subscription, updateSubscriptionPlan, formatAmount } = useApp();
-  const { toast } = useToast();
+  const { plans } = useApp();
   const navigate = useNavigate();
 
-  const [billingInterval, setBillingInterval] = useState('monthly'); // 'monthly' | 'yearly'
-
-  const handleSelectPlan = (plan) => {
-    // If user is already on dashboard, update their simulated plan
-    updateSubscriptionPlan(plan.id, billingInterval);
-    toast.success(`Selected ${plan.name} (${billingInterval}). Updated in demo state.`, 'Plan Updated');
-    navigate('/subscription');
+  const handleSelectPlan = () => {
+    navigate('/signup');
   };
 
   const comparisonFeatures = [
@@ -49,76 +37,32 @@ export const PricingPage = () => {
             Showroom Pro Subscription
           </Badge>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
-            Simple, Transparent Pricing For Your Showroom
+            One Simple Plan For Your Showroom
           </h1>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-            One simple plan gives every EV bike showroom the complete office management system. Select monthly or yearly billing below.
+            One fixed plan gives every EV bike showroom the complete office management system for Rs. 10,000 per month.
           </p>
 
-          {/* Billing Interval Toggle */}
-          <div className="mt-8 inline-flex items-center p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-            <button
-              onClick={() => setBillingInterval('monthly')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
-                billingInterval === 'monthly'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Monthly Billing
-            </button>
-            <button
-              onClick={() => setBillingInterval('yearly')}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                billingInterval === 'yearly'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <span>Yearly Billing</span>
-              <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 rounded font-bold">
-                Save 17%
-              </span>
-            </button>
-          </div>
-
           <div className="mt-3 text-[11px] text-slate-400">
-            * All figures are configurable simulated demo rates. Final pricing will be linked to payment gateway in Phase 2.
+            Online payment processing will be enabled when a payment provider is connected.
           </div>
         </div>
 
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 gap-8 mb-20 items-stretch max-w-xl mx-auto">
           {plans.map((plan) => {
-            const isCurrent = subscription.planId === plan.id;
-            const price = billingInterval === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
-            const period = billingInterval === 'yearly' ? '/year' : '/month';
+            const price = Number(plan.monthlyPrice).toLocaleString('en-PK');
 
             return (
               <div
                 key={plan.id}
-                className={`relative rounded-2xl p-6 sm:p-8 flex flex-col justify-between transition-all ${
-                  plan.popular
-                    ? 'bg-white dark:bg-slate-900 border-2 border-blue-600 shadow-xl ring-1 ring-blue-600/20'
-                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md'
-                }`}
+                className="relative rounded-2xl p-6 sm:p-8 flex flex-col justify-between bg-white dark:bg-slate-900 border-2 border-blue-600 shadow-xl ring-1 ring-blue-600/20"
               >
-                {plan.popular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wider uppercase shadow-xs">
-                    Most Popular Choice
-                  </div>
-                )}
-
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       {plan.badge}
                     </span>
-                    {isCurrent && (
-                      <Badge variant="success" size="sm">
-                        Current Plan
-                      </Badge>
-                    )}
                   </div>
 
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
@@ -131,23 +75,14 @@ export const PricingPage = () => {
 
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
-                      {formatAmount(price)}
+                      Rs. {price}
                     </span>
-                    <span className="text-xs text-slate-500">{period}</span>
+                    <span className="text-xs text-slate-500">/month</span>
                   </div>
 
-                  {/* STRICT PARTNER LIMIT HIGHLIGHT */}
-                  <div className={`p-3.5 rounded-xl border mb-6 text-xs font-semibold flex items-center gap-2.5 ${
-                    plan.isUnlimitedPartners
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
-                      : 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                  }`}>
+                  <div className="p-3.5 rounded-xl border mb-6 text-xs font-semibold flex items-center gap-2.5 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
                     <Users className="w-4 h-4 shrink-0" />
-                    <span>
-                      {plan.isUnlimitedPartners
-                        ? 'Unlimited Showroom Partners'
-                        : `Maximum ${plan.partnerLimit} Partners Allowed`}
-                    </span>
+                    <span>Unlimited Showroom Partners · Included</span>
                   </div>
 
                   {/* Features */}
@@ -165,12 +100,12 @@ export const PricingPage = () => {
                 </div>
 
                 <Button
-                  variant={plan.popular ? 'primary' : 'secondary'}
+                  variant="primary"
                   size="lg"
                   className="w-full"
-                  onClick={() => handleSelectPlan(plan)}
+                  onClick={handleSelectPlan}
                 >
-                  {isCurrent ? 'Current Active Plan' : `Select ${plan.name}`}
+                  Create showroom account
                 </Button>
               </div>
             );
@@ -181,7 +116,7 @@ export const PricingPage = () => {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="p-6 border-b border-slate-200 dark:border-slate-800">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              Detailed Plan Feature Comparison
+              Everything Included
             </h3>
             <p className="text-xs text-slate-500 mt-1">
               Everything included in one complete showroom plan.
