@@ -538,7 +538,7 @@ export const ProductsPage = () => {
                     <Spec label="Top speed" value={viewProduct.topSpeed} />
                     <Spec label="Motor" value={viewProduct.motorPower} />
                     <Spec label="Battery" value={`${viewProduct.batteryType || ''} ${viewProduct.batteryCapacity || ''}`.trim()} />
-                    <Spec label="Range" value={viewProduct.rangeKm ? `${viewProduct.rangeKm} km` : ''} />
+                    <Spec label="Range" value={viewProduct.rangeDescription || (viewProduct.rangeKm ? `${viewProduct.rangeKm} km` : '')} />
                     <Spec label="Charging" value={viewProduct.chargingTime} />
                     <Spec label="Color" value={viewProduct.color} />
                     <Spec label="Warranty" value={viewProduct.warranty} />

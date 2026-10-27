@@ -205,7 +205,7 @@ export const SignupPage = () => {
                     type="text"
                     value={formData.showroomName}
                     onChange={(e) => setFormData({ ...formData, showroomName: e.target.value })}
-                    placeholder="e.g. Apex Luxury Motors"
+                    placeholder="e.g. UrbanVolt EV Showroom"
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   {errors.showroomName && <p className="text-[11px] text-rose-500 mt-1">{errors.showroomName}</p>}

@@ -23,8 +23,20 @@ export const LoginPage = () => {
   const [errors, setErrors] = useState({});
 
   const { toast } = useToast();
-  const { setCurrentRole, signIn, isSupabaseConfigured } = useApp();
+  const { setCurrentRole, signIn, signOut, resetDemoData, isSupabaseConfigured } = useApp();
   const navigate = useNavigate();
+
+  const openShowroomDemo = async () => {
+    try {
+      await signOut();
+      resetDemoData();
+      setCurrentRole('showroom_owner');
+      toast.info('UrbanVolt sample records loaded on this device. No demo records were sent to Supabase.', 'EV Showroom Demo');
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error.message || 'Unable to open the local showroom demo.', 'Demo unavailable');
+    }
+  };
 
   const validate = () => {
     const errs = {};
@@ -185,16 +197,11 @@ export const LoginPage = () => {
             <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setEmail('director@apexshowroom.com');
-                  setPassword('demo-password-123');
-                  setCurrentRole('showroom_owner');
-                  navigate('/dashboard');
-                }}
+                onClick={openShowroomDemo}
                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-left text-xs transition-colors"
               >
-                <div className="font-semibold text-slate-800 dark:text-slate-200">Showroom Owner Demo</div>
-                <div className="text-[10px] text-slate-400">Apex Luxury · local preview only</div>
+                <div className="font-semibold text-slate-800 dark:text-slate-200">Open EV Showroom Demo</div>
+                <div className="text-[10px] text-slate-400">UrbanVolt EV · sample records only</div>
               </button>
             </div>
           </div>
