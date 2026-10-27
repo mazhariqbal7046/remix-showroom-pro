@@ -502,6 +502,112 @@ export const INITIAL_BOOKINGS = [
   },
 ];
 
+// Separate, device-local Crown dealer demo for Farhan Ali.
+const FARHAN_CROWN_PRODUCTS = INITIAL_PRODUCTS
+  .filter((product) => product.brand === 'Crown Electric Mobility' && product.category === 'EV Bikes')
+  .map((product) => {
+    const availableUnits = {
+      'CROWN-SPARK': 0,
+      'CROWN-FAIRY': 1,
+      'CROWN-FIREFLY': 0,
+      'CROWN-CHAMPION': 1,
+      'CROWN-CHAMPION-PRO': 1,
+      'CROWN-FLOSH': 1,
+      'CROWN-KNIGHT-RIDER': 1,
+      'CROWN-RAFTAR-PRO': 1,
+      'CROWN-X200': 1,
+    }[product.id] ?? 0;
+    const reservedUnits = {
+      'CROWN-FAIRY': 1,
+      'CROWN-CHAMPION': 1,
+      'CROWN-CHAMPION-PRO': 1,
+      'CROWN-KNIGHT-RIDER': 1,
+      'CROWN-RAFTAR-PRO': 1,
+      'CROWN-X200': 1,
+    }[product.id] ?? 0;
+    return { ...product, quantity: availableUnits, reservedQuantity: reservedUnits };
+  });
+
+export const FARHAN_CROWN_DEMO_DATA = {
+  showroomInfo: {
+    name: 'Farhan Ali Crown EV Showroom (Demo)',
+    category: 'Electric Bike Showroom',
+    email: 'farhan@example.com',
+    phone: '+92 300 0000100',
+    address: 'Main Boulevard, Gulberg III',
+    city: 'Lahore',
+    country: 'Pakistan',
+    currency: 'PKR',
+    dateFormat: 'YYYY-MM-DD',
+    taxNumber: 'DEMO-NTN-FA-001',
+    website: 'https://showroom-pro-frontend.onrender.com',
+    establishedYear: '2023',
+  },
+  userProfile: {
+    fullName: 'Farhan Ali',
+    email: 'farhan@example.com',
+    phone: '+92 300 0000100',
+    role: 'Owner & Managing Partner',
+    avatar: '',
+  },
+  subscription: INITIAL_SUBSCRIPTION,
+  plans: PLANS_CONFIG,
+  customers: [
+    { id: 'FAR-CUST-001', fullName: 'Hammad Ali (Demo)', phone: '+92 300 0000101', email: 'hammad.farhan@example.com', address: 'DHA Phase 6, Lahore', totalPurchases: 195000, outstandingBalance: 0, registrationDate: '2026-09-14', status: 'Active' },
+    { id: 'FAR-CUST-002', fullName: 'Sana Arif (Demo)', phone: '+92 300 0000102', email: 'sana.farhan@example.com', address: 'Model Town, Lahore', totalPurchases: 235000, outstandingBalance: 0, registrationDate: '2026-09-22', status: 'Active' },
+    { id: 'FAR-CUST-003', fullName: 'Bilal Ahmed (Demo)', phone: '+92 300 0000103', email: 'bilal.farhan@example.com', address: 'People’s Colony, Faisalabad', totalPurchases: 315000, outstandingBalance: 15000, registrationDate: '2026-10-05', status: 'Active' },
+    { id: 'FAR-CUST-004', fullName: 'Noor Fatima (Demo)', phone: '+92 300 0000104', email: 'noor.farhan@example.com', address: 'Clifton Block 2, Karachi', totalPurchases: 0, outstandingBalance: 0, registrationDate: '2026-10-12', status: 'Active' },
+    { id: 'FAR-CUST-005', fullName: 'Usman Raza (Demo)', phone: '+92 300 0000105', email: 'usman.farhan@example.com', address: 'F-10 Markaz, Islamabad', totalPurchases: 0, outstandingBalance: 0, registrationDate: '2026-10-18', status: 'Active' },
+    { id: 'FAR-CUST-006', fullName: 'Mariam Shah (Demo)', phone: '+92 300 0000106', email: 'mariam.farhan@example.com', address: 'Johar Town, Lahore', totalPurchases: 0, outstandingBalance: 0, registrationDate: '2026-10-22', status: 'Active' },
+  ],
+  products: FARHAN_CROWN_PRODUCTS,
+  suppliers: [
+    { id: 'FAR-SUP-001', name: 'Crown Dealer Desk (Demo)', company: 'Crown Electric Mobility', phone: '+92 300 0000110', email: 'crown.farhan@example.com', address: 'Lahore, Pakistan', productsSupplied: 'Crown electric bike range', outstandingBalance: 758000 },
+  ],
+  sales: [
+    { id: 'FAR-SALE-001', invoiceNumber: 'FA-INV-2026-001', customerId: 'FAR-CUST-001', customerName: 'Hammad Ali (Demo)', customerPhone: '+92 300 0000101', date: '2026-10-12', items: [{ productId: 'CROWN-SPARK', productName: 'Crown Spark', quantity: 1, unitPrice: 195000, unitCost: 155000, total: 195000 }], subtotal: 195000, discount: 0, total: 195000, paidAmount: 195000, remainingBalance: 0, paymentMethod: 'Bank Transfer', status: 'Paid', notes: 'Crown Spark delivered; payment cleared.' },
+    { id: 'FAR-SALE-002', invoiceNumber: 'FA-INV-2026-002', customerId: 'FAR-CUST-002', customerName: 'Sana Arif (Demo)', customerPhone: '+92 300 0000102', date: '2026-10-16', items: [{ productId: 'CROWN-FIREFLY', productName: 'Crown Firefly', quantity: 1, unitPrice: 235000, unitCost: 188000, total: 235000 }], subtotal: 235000, discount: 0, total: 235000, paidAmount: 235000, remainingBalance: 0, paymentMethod: 'Cash', status: 'Paid', notes: 'Crown Firefly delivery completed.' },
+    { id: 'FAR-SALE-003', invoiceNumber: 'FA-INV-2026-003', customerId: 'FAR-CUST-003', customerName: 'Bilal Ahmed (Demo)', customerPhone: '+92 300 0000103', date: '2026-10-20', items: [{ productId: 'CROWN-X200', productName: 'Crown X200', quantity: 1, unitPrice: 315000, unitCost: 252000, total: 315000 }], subtotal: 315000, discount: 0, total: 315000, paidAmount: 300000, remainingBalance: 15000, paymentMethod: 'Bank Transfer', status: 'Partially Paid', notes: 'Crown X200 delivered; Rs. 15,000 balance due.' },
+  ],
+  purchases: [
+    { id: 'FAR-PUR-001', supplierId: 'FAR-SUP-001', supplierName: 'Crown Electric Mobility', invoiceRef: 'CROWN-FA-2026-001', date: '2026-10-03', items: FARHAN_CROWN_PRODUCTS.map((product) => { const quantity = product.id === 'CROWN-X200' ? 2 : 1; return { productName: product.name, quantity, unitCost: product.costPrice, total: product.costPrice * quantity }; }), totalCost: 2258000, paidAmount: 1500000, remainingBalance: 758000, paymentMethod: 'Bank Transfer', status: 'Partially Paid' },
+  ],
+  partners: [
+    { id: 'FAR-PART-001', fullName: 'Farhan Ali', email: 'farhan@example.com', phone: '+92 300 0000100', role: 'Owner & Working Partner', equityShare: '100%', ownershipPercentage: 100, profitSharingPercentage: 100, joiningDate: '2023-01-01', status: 'Active' },
+  ],
+  expenses: [
+    { id: 'FAR-EXP-001', title: 'Crown Showroom Rent — Gulberg', category: 'Rent', amount: 65000, paymentMethod: 'Bank Transfer', date: '2026-10-01', notes: 'Monthly rent for the demo showroom.' },
+    { id: 'FAR-EXP-002', title: 'Showroom Staff Salaries', category: 'Salaries', amount: 35000, paymentMethod: 'Bank Transfer', date: '2026-10-05', notes: 'Demo monthly staff payroll.' },
+    { id: 'FAR-EXP-003', title: 'Electricity and Charging Area Utilities', category: 'Utilities', amount: 12000, paymentMethod: 'Bank Transfer', date: '2026-10-10', notes: 'Showroom utilities and charging area.' },
+    { id: 'FAR-EXP-004', title: 'Crown Bike Local Promotion', category: 'Marketing', amount: 6000, paymentMethod: 'Cash', date: '2026-10-14', notes: 'Local campaign for Crown electric bikes.' },
+    { id: 'FAR-EXP-005', title: 'Bike Delivery and Inspection', category: 'Transport', amount: 5000, paymentMethod: 'Cash', date: '2026-10-18', notes: 'Local delivery and pre-delivery inspection.' },
+  ],
+  notifications: [
+    { id: 'FAR-NOTIF-001', type: 'warning', title: 'Booking Advance Due', message: 'Sana Arif’s Crown Fairy booking is pending confirmation and advance payment.', date: '2026-10-26T09:00:00Z', read: false, link: '/bookings' },
+    { id: 'FAR-NOTIF-002', type: 'success', title: 'Crown Bike Sale Recorded', message: 'Crown Firefly was delivered to Sana Arif (Demo) for Rs. 235,000.', date: '2026-10-16T12:00:00Z', read: false, link: '/invoices' },
+    { id: 'FAR-NOTIF-003', type: 'info', title: 'Crown Supplier Balance', message: 'Rs. 758,000 remains payable against the Crown stock purchase.', date: '2026-10-20T10:00:00Z', read: true, link: '/purchases' },
+  ],
+  bookings: [
+    { id: 'FAR-BOOK-001', bookingNumber: 'FA-BK-2026-001', customerId: 'FAR-CUST-001', customerName: 'Hammad Ali (Demo)', customerPhone: '+92 300 0000101', customerEmail: 'hammad.farhan@example.com', address: 'DHA Phase 6, Lahore', identificationReference: 'DEMO-CNIC-FA-001', bikeProductId: 'CROWN-CHAMPION', bikeBrand: 'Crown Electric Mobility', bikeModel: 'Champion', modelYear: '2026', color: 'Black', chassisReference: 'CROWN-FA-CH-001', stockUnitReference: 'FA-STK-001', bookingDate: '2026-10-22', expectedDeliveryDate: '2026-10-31', totalPrice: 285000, depositRequired: 50000, amountReceived: 50000, remainingBalance: 235000, paymentMethod: 'Bank Transfer', salesperson: 'Farhan Ali', status: 'Confirmed', deliveryStatus: 'Reserved', notes: 'Advance received; delivery slot confirmed.', payments: [{ id: 'FA-PAY-001', receiptNumber: 'FA-RCT-2026-001', date: '2026-10-22', amount: 50000, method: 'Bank Transfer', reference: 'FA-ADV-001' }] },
+    { id: 'FAR-BOOK-002', bookingNumber: 'FA-BK-2026-002', customerId: 'FAR-CUST-002', customerName: 'Sana Arif (Demo)', customerPhone: '+92 300 0000102', customerEmail: 'sana.farhan@example.com', address: 'Model Town, Lahore', identificationReference: 'DEMO-CNIC-FA-002', bikeProductId: 'CROWN-FAIRY', bikeBrand: 'Crown Electric Mobility', bikeModel: 'Fairy', modelYear: '2026', color: 'White', chassisReference: 'CROWN-FA-FR-002', stockUnitReference: 'FA-STK-002', bookingDate: '2026-10-24', expectedDeliveryDate: '2026-11-02', totalPrice: 220000, depositRequired: 50000, amountReceived: 0, remainingBalance: 220000, paymentMethod: 'Cash', salesperson: 'Farhan Ali', status: 'Pending', deliveryStatus: 'Reserved', notes: 'Customer is considering the booking; no advance received yet.', payments: [] },
+    { id: 'FAR-BOOK-003', bookingNumber: 'FA-BK-2026-003', customerId: 'FAR-CUST-003', customerName: 'Bilal Ahmed (Demo)', customerPhone: '+92 300 0000103', customerEmail: 'bilal.farhan@example.com', address: 'People’s Colony, Faisalabad', identificationReference: 'DEMO-CNIC-FA-003', bikeProductId: 'CROWN-CHAMPION-PRO', bikeBrand: 'Crown Electric Mobility', bikeModel: 'Champion Pro', modelYear: '2026', color: 'Red/Black', chassisReference: 'CROWN-FA-CP-003', stockUnitReference: 'FA-STK-003', bookingDate: '2026-10-25', expectedDeliveryDate: '2026-11-05', totalPrice: 335000, depositRequired: 100000, amountReceived: 100000, remainingBalance: 235000, paymentMethod: 'Mobile Wallet', salesperson: 'Farhan Ali', status: 'Partially Paid', deliveryStatus: 'Reserved', notes: 'Advance received for the long-range Champion Pro.', payments: [{ id: 'FA-PAY-003', receiptNumber: 'FA-RCT-2026-002', date: '2026-10-25', amount: 100000, method: 'Mobile Wallet', reference: 'FA-ADV-003' }] },
+    { id: 'FAR-BOOK-004', bookingNumber: 'FA-BK-2026-004', customerId: 'FAR-CUST-004', customerName: 'Noor Fatima (Demo)', customerPhone: '+92 300 0000104', customerEmail: 'noor.farhan@example.com', address: 'Clifton Block 2, Karachi', identificationReference: 'DEMO-CNIC-FA-004', bikeProductId: 'CROWN-RAFTAR-PRO', bikeBrand: 'Crown Electric Mobility', bikeModel: 'Raftar Pro', modelYear: '2026', color: 'Red/Black', chassisReference: 'CROWN-FA-RP-004', stockUnitReference: 'FA-STK-004', bookingDate: '2026-10-26', expectedDeliveryDate: '2026-10-29', totalPrice: 345000, depositRequired: 345000, amountReceived: 345000, remainingBalance: 0, paymentMethod: 'Bank Transfer', salesperson: 'Farhan Ali', status: 'Confirmed', deliveryStatus: 'Ready', notes: 'Paid in full; bike is ready for customer collection.', payments: [{ id: 'FA-PAY-004', receiptNumber: 'FA-RCT-2026-003', date: '2026-10-26', amount: 345000, method: 'Bank Transfer', reference: 'FA-FULL-004' }] },
+    { id: 'FAR-BOOK-005', bookingNumber: 'FA-BK-2026-005', customerId: 'FAR-CUST-005', customerName: 'Usman Raza (Demo)', customerPhone: '+92 300 0000105', customerEmail: 'usman.farhan@example.com', address: 'F-10 Markaz, Islamabad', identificationReference: 'DEMO-CNIC-FA-005', bikeProductId: 'CROWN-X200', bikeBrand: 'Crown Electric Mobility', bikeModel: 'X200', modelYear: '2026', color: 'Red/Black', chassisReference: 'CROWN-FA-X2-005', stockUnitReference: 'FA-STK-005', bookingDate: '2026-10-26', expectedDeliveryDate: '2026-11-04', totalPrice: 315000, depositRequired: 75000, amountReceived: 0, remainingBalance: 315000, paymentMethod: 'Cash', salesperson: 'Farhan Ali', status: 'Pending', deliveryStatus: 'Reserved', notes: 'Quotation shared; customer advance is pending.', payments: [] },
+    { id: 'FAR-BOOK-006', bookingNumber: 'FA-BK-2026-006', customerId: 'FAR-CUST-006', customerName: 'Mariam Shah (Demo)', customerPhone: '+92 300 0000106', customerEmail: 'mariam.farhan@example.com', address: 'Johar Town, Lahore', identificationReference: 'DEMO-CNIC-FA-006', bikeProductId: 'CROWN-KNIGHT-RIDER', bikeBrand: 'Crown Electric Mobility', bikeModel: 'Knight Rider', modelYear: '2026', color: 'Black', chassisReference: 'CROWN-FA-KR-006', stockUnitReference: 'FA-STK-006', bookingDate: '2026-10-27', expectedDeliveryDate: '2026-11-06', totalPrice: 295000, depositRequired: 75000, amountReceived: 75000, remainingBalance: 220000, paymentMethod: 'Cash', salesperson: 'Farhan Ali', status: 'Confirmed', deliveryStatus: 'Reserved', notes: 'Booking confirmed after cash advance.', payments: [{ id: 'FA-PAY-006', receiptNumber: 'FA-RCT-2026-004', date: '2026-10-27', amount: 75000, method: 'Cash', reference: 'FA-ADV-006' }] },
+  ],
+  partnerInvestments: [
+    { id: 'FAR-INVST-001', partnerId: 'FAR-PART-001', date: '2026-01-01', amount: 1200000, method: 'Bank Transfer', reference: 'FA-CAP-001', notes: 'Opening capital for Crown showroom demo.', status: 'Posted' },
+  ],
+  ownershipHistory: [
+    { id: 'FAR-OWN-001', effectiveDate: '2026-01-01', status: 'Approved', reason: 'Initial owner arrangement', approvedBy: 'Farhan Ali', allocations: { 'FAR-PART-001': 100 } },
+  ],
+  profitShareHistory: [
+    { id: 'FAR-PS-001', effectiveDate: '2026-01-01', status: 'Approved', reason: 'Initial profit-share arrangement', approvedBy: 'Farhan Ali', allocations: { 'FAR-PART-001': 100 } },
+  ],
+  settlements: [],
+  withdrawals: [],
+};
+
 export const INITIAL_PARTNER_INVESTMENTS = [
   { id: 'INVST-001', partnerId: 'PART-001', date: '2026-01-01', amount: 2500000, method: 'Bank Transfer', reference: 'CAP-001', notes: 'Opening capital', status: 'Posted' },
   { id: 'INVST-002', partnerId: 'PART-002', date: '2026-02-15', amount: 1200000, method: 'Bank Transfer', reference: 'CAP-002', notes: 'Opening capital', status: 'Posted' },

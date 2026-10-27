@@ -23,6 +23,7 @@ import {
   INITIAL_PROFIT_SHARES,
   INITIAL_SETTLEMENTS,
   INITIAL_WITHDRAWALS,
+  FARHAN_CROWN_DEMO_DATA,
 } from '../data/initialData';
 import { calculateFinancials, normaliseBooking, getApplicableAllocation, todayISO } from '../utils/businessLogic';
 import { auth, ensureShowroom, isSupabaseConfigured, loadShowroomData, queueEmail, removeEntity, syncBookingPayment, syncEntity } from '../lib/supabase';
@@ -671,6 +672,35 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  // Load a separate Farhan/Crown sample showroom locally without syncing seed rows to Supabase.
+  const loadFarhanCrownDemo = () => {
+    const data = FARHAN_CROWN_DEMO_DATA;
+    const localData = [
+      ['showroom_info', setShowroomInfo, data.showroomInfo],
+      ['user_profile', setUserProfile, data.userProfile],
+      ['subscription', setSubscription, data.subscription],
+      ['plans', setPlans, data.plans],
+      ['customers', setCustomers, data.customers],
+      ['products', setProducts, data.products],
+      ['suppliers', setSuppliers, data.suppliers],
+      ['sales', setSales, data.sales],
+      ['purchases', setPurchases, data.purchases],
+      ['partners', setPartners, data.partners],
+      ['expenses', setExpenses, data.expenses],
+      ['notifications', setNotifications, data.notifications],
+      ['bookings', setBookings, data.bookings],
+      ['partner_investments', setPartnerInvestments, data.partnerInvestments],
+      ['ownership_history', setOwnershipHistory, data.ownershipHistory],
+      ['profit_share_history', setProfitShareHistory, data.profitShareHistory],
+      ['settlements', setSettlements, data.settlements],
+      ['withdrawals', setWithdrawals, data.withdrawals],
+    ];
+    localData.forEach(([key, setter, value]) => {
+      setter(value);
+      saveLocal(key, value);
+    });
+  };
+
   // Currency helper tied to context
   const formatAmount = (amt) => {
     const num = Number(amt) || 0;
@@ -760,6 +790,7 @@ export const AppProvider = ({ children }) => {
     updateUserProfile,
     toggleShowroomStatus,
     resetDemoData,
+    loadFarhanCrownDemo,
     formatAmount,
     signIn,
     signUp,

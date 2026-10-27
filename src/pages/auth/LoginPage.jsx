@@ -23,7 +23,7 @@ export const LoginPage = () => {
   const [errors, setErrors] = useState({});
 
   const { toast } = useToast();
-  const { setCurrentRole, signIn, signOut, resetDemoData, isSupabaseConfigured } = useApp();
+  const { setCurrentRole, signIn, signOut, resetDemoData, loadFarhanCrownDemo, isSupabaseConfigured } = useApp();
   const navigate = useNavigate();
 
   const openShowroomDemo = async () => {
@@ -35,6 +35,18 @@ export const LoginPage = () => {
       navigate('/dashboard');
     } catch (error) {
       toast.error(error.message || 'Unable to open the local showroom demo.', 'Demo unavailable');
+    }
+  };
+
+  const openFarhanCrownDemo = async () => {
+    try {
+      await signOut();
+      loadFarhanCrownDemo();
+      setCurrentRole('showroom_owner');
+      toast.info('Farhan Ali Crown sample records loaded on this device. No demo records were sent to Supabase.', 'Farhan Ali Crown Demo');
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error.message || 'Unable to open the Farhan Ali Crown showroom demo.', 'Demo unavailable');
     }
   };
 
@@ -202,6 +214,14 @@ export const LoginPage = () => {
               >
                 <div className="font-semibold text-slate-800 dark:text-slate-200">Open EV Showroom Demo</div>
                 <div className="text-[10px] text-slate-400">UrbanVolt EV · sample records only</div>
+              </button>
+              <button
+                type="button"
+                onClick={openFarhanCrownDemo}
+                className="p-2 rounded-lg border border-orange-200 dark:border-orange-900 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-left text-xs transition-colors"
+              >
+                <div className="font-semibold text-slate-800 dark:text-slate-200">Open Farhan Ali Crown Demo</div>
+                <div className="text-[10px] text-slate-400">9 Crown EV models · sample showroom only</div>
               </button>
             </div>
           </div>
