@@ -8,12 +8,12 @@ import {
   EyeOff,
   ArrowRight,
   ShieldAlert,
-  Shield,
   CheckCircle,
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/common/Button';
+import { isSuperAdminUser, SUPER_ADMIN_EMAIL } from '../../lib/accessControl';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -46,20 +46,19 @@ export const LoginPage = () => {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await signIn(email, password);
-      const isAdmin = email.trim().toLowerCase() === 'mazhariqbal4016@gmail.com';
+      const result = await signIn(email, password);
+      const signedInUser = result?.data?.user || result?.data?.session?.user;
+      const isAdminEmail = email.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+      const isAdmin = isSuperAdminUser(signedInUser);
+      if (isAdminEmail && !isAdmin) {
+        throw new Error('This account is not authorized for Super Admin access.');
+      }
       setCurrentRole(isAdmin ? 'super_admin' : 'showroom_owner');
       toast.success(isSupabaseConfigured ? 'Signed in securely.' : 'Signed in to the local demo session.', isAdmin ? 'Super Admin Authentication' : (isSupabaseConfigured ? 'Supabase Authentication' : 'Demo Authentication'));
       navigate(isAdmin ? '/super-admin' : '/dashboard');
     } catch (error) {
       toast.error(error.message || 'Unable to sign in. Check your email and password.', 'Authentication failed');
     }
-  };
-
-  const handleQuickAdminLogin = () => {
-    setCurrentRole('super_admin');
-    toast.info('Super Admin role active for demo evaluation.', 'Admin Mode');
-    navigate('/super-admin');
   };
 
   return (
@@ -183,7 +182,7 @@ export const LoginPage = () => {
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block text-center mb-3">
               Fast Demo Switcher
             </span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -194,19 +193,8 @@ export const LoginPage = () => {
                 }}
                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-left text-xs transition-colors"
               >
-                <div className="font-semibold text-slate-800 dark:text-slate-200">Showroom Owner</div>
-                <div className="text-[10px] text-slate-400">Apex Luxury</div>
-              </button>
-              <button
-                type="button"
-                onClick={handleQuickAdminLogin}
-                className="p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-left text-xs transition-colors text-indigo-700 dark:text-indigo-300"
-              >
-                <div className="font-semibold flex items-center gap-1">
-                  <Shield className="w-3 h-3 text-indigo-600" />
-                  Super Admin
-                </div>
-                <div className="text-[10px] text-indigo-500">Platform Owner</div>
+                <div className="font-semibold text-slate-800 dark:text-slate-200">Showroom Owner Demo</div>
+                <div className="text-[10px] text-slate-400">Apex Luxury · local preview only</div>
               </button>
             </div>
           </div>

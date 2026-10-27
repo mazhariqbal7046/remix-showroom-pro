@@ -40,6 +40,7 @@ EMAIL_FROM = os.getenv("EMAIL_FROM", "Showroom Pro <onboarding@resend.dev>")
 NOTIFICATION_WORKER_ENABLED = os.getenv("NOTIFICATION_WORKER_ENABLED", "true").lower() == "true"
 WORKER_SECRET = os.getenv("WORKER_SECRET", "")
 ADMIN_API_SECRET = os.getenv("ADMIN_API_SECRET", "")
+SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "mazhariqbal4016@gmail.com").strip().lower()
 
 app = FastAPI(title="Showroom Pro AI API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CLIENT_ORIGIN", "http://localhost:5173").split(","), allow_methods=["*"], allow_headers=["*"])
@@ -65,13 +66,19 @@ async def verify_user(token: str) -> str | None:
     return response.json().get("id") if response.is_success else None
 
 
-async def verify_email(token: str) -> str | None:
+async def verify_super_admin(token: str) -> bool:
     if not SUPABASE_URL or not token:
-        return None
+        return False
     headers = {"apikey": SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {token}"}
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.get(f"{SUPABASE_URL}/auth/v1/user", headers=headers)
-    return response.json().get("email") if response.is_success else None
+    if not response.is_success:
+        return False
+    user = response.json()
+    return (
+        str(user.get("email", "")).strip().lower() == SUPER_ADMIN_EMAIL
+        and user.get("app_metadata", {}).get("role") == "super_admin"
+    )
 
 
 async def allowed(showroom_id: str, user_id: str) -> bool:
@@ -231,8 +238,7 @@ async def monthly_closing(request: MonthlyClosingRequest, authorization: str | N
 @app.get("/api/admin/metrics")
 async def admin_metrics(x_admin_secret: str | None = Header(default=None), authorization: str | None = Header(default=None)) -> dict[str, Any]:
     token = (authorization or "").removeprefix("Bearer ").strip()
-    admin_email = await verify_email(token)
-    if not ((ADMIN_API_SECRET and x_admin_secret == ADMIN_API_SECRET) or admin_email == "mazhariqbal4016@gmail.com"):
+    if not ((ADMIN_API_SECRET and x_admin_secret == ADMIN_API_SECRET) or await verify_super_admin(token)):
         raise HTTPException(403, "Admin access denied.")
     showrooms = await supabase_rows("showrooms", {"select": "id,created_at"})
     subscriptions = await supabase_rows("subscriptions", {"select": "status,monthly_amount"})

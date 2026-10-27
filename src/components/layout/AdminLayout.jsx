@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, Link, Navigate } from 'react-router-dom';
 import {
   ShieldAlert,
   Building,
@@ -22,13 +22,21 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useApp } from '../../context/AppContext';
+import { isSuperAdminUser } from '../../lib/accessControl';
 import { Badge } from '../common/Badge';
 
 export const AdminLayout = () => {
   const { theme, toggleTheme } = useTheme();
-  const { adminShowrooms, platformSettings } = useApp();
+  const { adminShowrooms, platformSettings, authUser, authLoading, isSupabaseConfigured } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const navigate = useNavigate();
+
+  if (authLoading) {
+    return <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-300">Checking admin access…</div>;
+  }
+
+  if (!isSupabaseConfigured || !isSuperAdminUser(authUser)) {
+    return <Navigate to="/login" replace />;
+  }
 
   const adminNav = [
     { name: 'Platform Overview', path: '/super-admin', icon: TrendingUp },
