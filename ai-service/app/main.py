@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -30,6 +30,25 @@ class NotificationRequest(BaseModel):
 class MonthlyClosingRequest(BaseModel):
     month_start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     notes: str | None = None
+
+
+class BankTransferRequest(BaseModel):
+    transfer_reference: str = Field(min_length=3, max_length=120)
+    transfer_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class PlatformPaymentSettingsRequest(BaseModel):
+    account_holder: str = Field(min_length=2, max_length=120)
+    bank_name: str = Field(min_length=2, max_length=120)
+    account_number: str = Field(min_length=5, max_length=80)
+    iban: str = Field(default="", max_length=50)
+    raast_id: str = Field(default="", max_length=120)
+    payment_instructions: str = Field(default="", max_length=1000)
+
+
+class PaymentReviewRequest(BaseModel):
+    decision: str = Field(pattern="^(approve|reject)$")
+    note: str | None = Field(default=None, max_length=500)
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
@@ -84,6 +103,39 @@ async def verify_super_admin(token: str) -> bool:
 async def allowed(showroom_id: str, user_id: str) -> bool:
     rows = await supabase_rows("showroom_members", {"showroom_id": f"eq.{showroom_id}", "user_id": f"eq.{user_id}", "select": "showroom_id"})
     return bool(rows)
+
+
+async def showroom_owner(showroom_id: str, user_id: str) -> bool:
+    rows = await supabase_rows("showroom_members", {"showroom_id": f"eq.{showroom_id}", "user_id": f"eq.{user_id}", "select": "role"})
+    return any(str(row.get("role", "")).lower() in {"owner", "admin"} for row in rows)
+
+
+async def authenticated_user(authorization: str | None) -> str:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    user_id = await verify_user(token)
+    if not user_id:
+        raise HTTPException(401, "Please sign in again.")
+    return user_id
+
+
+async def require_admin(authorization: str | None) -> str:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not await verify_super_admin(token):
+        raise HTTPException(403, "Admin access denied.")
+    user_id = await verify_user(token)
+    if not user_id:
+        raise HTTPException(401, "Please sign in again.")
+    return user_id
+
+
+def add_billing_month(value: date) -> date:
+    month_index = value.month
+    year = value.year + (month_index // 12)
+    month = month_index % 12 + 1
+    next_month_start = date(year, month, 1)
+    following = next_month_start.replace(day=28) + timedelta(days=4)
+    last_day = (following - timedelta(days=following.day)).day
+    return date(year, month, min(value.day, last_day))
 
 
 async def supabase_write(table: str, payload: dict[str, Any], params: dict[str, str] | None = None, method: str = "POST") -> dict[str, Any]:
@@ -262,6 +314,93 @@ async def admin_metrics(x_admin_secret: str | None = Header(default=None), autho
         "sales_volume": sum(amount(item, "total") for item in active_sales),
         "active_bookings": sum(1 for item in bookings if str(item.get("status", "")).lower() not in {"cancelled", "delivered"}),
     }
+
+
+@app.get("/api/billing/subscription")
+async def billing_subscription(authorization: str | None = Header(default=None), x_showroom_id: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await authenticated_user(authorization)
+    if not x_showroom_id or not await allowed(x_showroom_id, user_id):
+        raise HTTPException(403, "Showroom access denied.")
+    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due)", "select": "id,status,monthly_amount,next_billing_date,last_paid_at,provider_reference", "limit": "1"})
+    if not subscriptions:
+        raise HTTPException(404, "No current subscription was found for this showroom.")
+    settings = await supabase_rows("platform_payment_settings", {"select": "account_holder,bank_name,account_number,iban,raast_id,payment_instructions", "limit": "1"})
+    payments = await supabase_rows("subscription_payment_submissions", {"showroom_id": f"eq.{x_showroom_id}", "select": "id,amount,currency,transfer_reference,transfer_date,status,created_at,review_note", "order": "created_at.desc", "limit": "30"})
+    return {"subscription": subscriptions[0], "payment_details": settings[0] if settings else None, "payments": payments}
+
+
+@app.post("/api/billing/subscription-payments")
+async def submit_subscription_payment(request: BankTransferRequest, authorization: str | None = Header(default=None), x_showroom_id: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await authenticated_user(authorization)
+    if not x_showroom_id or not await showroom_owner(x_showroom_id, user_id):
+        raise HTTPException(403, "Only the showroom owner can submit a subscription payment.")
+    try:
+        date.fromisoformat(request.transfer_date)
+    except ValueError:
+        raise HTTPException(400, "Transfer date is invalid.")
+    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due)", "select": "id,monthly_amount", "limit": "1"})
+    if not subscriptions:
+        raise HTTPException(404, "No current subscription was found.")
+    settings = await supabase_rows("platform_payment_settings", {"select": "id", "limit": "1"})
+    if not settings:
+        raise HTTPException(409, "Platform bank transfer details have not been configured yet.")
+    row = await supabase_write("subscription_payment_submissions", {
+        "showroom_id": x_showroom_id,
+        "subscription_id": subscriptions[0]["id"],
+        "amount": subscriptions[0].get("monthly_amount") or 10000,
+        "currency": "PKR",
+        "transfer_reference": request.transfer_reference.strip(),
+        "transfer_date": request.transfer_date,
+        "submitted_by": user_id,
+    })
+    return {"submitted": True, "payment": row}
+
+
+@app.get("/api/admin/payment-settings")
+async def admin_get_payment_settings(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    await require_admin(authorization)
+    rows = await supabase_rows("platform_payment_settings", {"select": "account_holder,bank_name,account_number,iban,raast_id,payment_instructions,updated_at", "limit": "1"})
+    return {"settings": rows[0] if rows else None}
+
+
+@app.put("/api/admin/payment-settings")
+async def admin_update_payment_settings(request: PlatformPaymentSettingsRequest, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await require_admin(authorization)
+    settings = request.model_dump()
+    settings.update({"id": True, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user_id})
+    row = await supabase_write("platform_payment_settings", settings, {"on_conflict": "id"})
+    return {"saved": True, "settings": row}
+
+
+@app.get("/api/admin/subscription-payments")
+async def admin_subscription_payments(authorization: str | None = Header(default=None), status: str | None = None) -> dict[str, Any]:
+    await require_admin(authorization)
+    params = {"select": "id,showroom_id,subscription_id,amount,currency,transfer_reference,transfer_date,status,created_at,review_note", "order": "created_at.desc", "limit": "250"}
+    if status in {"pending_review", "approved", "rejected"}:
+        params["status"] = f"eq.{status}"
+    payments, showrooms = await asyncio.gather(supabase_rows("subscription_payment_submissions", params), supabase_rows("showrooms", {"select": "id,name,email"}))
+    showroom_map = {row["id"]: row for row in showrooms}
+    return {"payments": [{**row, "showroom": showroom_map.get(row["showroom_id"], {})} for row in payments]}
+
+
+@app.post("/api/admin/subscription-payments/{payment_id}/review")
+async def admin_review_subscription_payment(payment_id: str, request: PaymentReviewRequest, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    reviewer_id = await require_admin(authorization)
+    rows = await supabase_rows("subscription_payment_submissions", {"id": f"eq.{payment_id}", "select": "id,showroom_id,subscription_id,status,transfer_reference", "limit": "1"})
+    if not rows:
+        raise HTTPException(404, "Payment submission not found.")
+    payment = rows[0]
+    if payment["status"] != "pending_review":
+        raise HTTPException(409, "This payment has already been reviewed.")
+    decision_status = "approved" if request.decision == "approve" else "rejected"
+    reviewed_at = datetime.now(timezone.utc)
+    reviewed = await supabase_write("subscription_payment_submissions", {"status": decision_status, "reviewed_at": reviewed_at.isoformat(), "reviewed_by": reviewer_id, "review_note": request.note}, {"id": f"eq.{payment_id}", "status": "eq.pending_review"}, "PATCH")
+    if request.decision == "approve":
+        current = await supabase_rows("subscriptions", {"id": f"eq.{payment['subscription_id']}", "select": "id,next_billing_date", "limit": "1"})
+        next_base = date.fromisoformat(current[0]["next_billing_date"]) if current and current[0].get("next_billing_date") else reviewed_at.date()
+        next_billing = add_billing_month(max(next_base, reviewed_at.date()))
+        await supabase_write("subscriptions", {"status": "active", "provider": "bank_transfer", "provider_reference": payment["transfer_reference"], "last_paid_at": reviewed_at.isoformat(), "next_billing_date": next_billing.isoformat()}, {"id": f"eq.{payment['subscription_id']}"}, "PATCH")
+    return {"reviewed": True, "payment": reviewed, "subscription_activated": request.decision == "approve"}
 
 
 @app.get("/api/admin/showrooms")

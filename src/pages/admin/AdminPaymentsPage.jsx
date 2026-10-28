@@ -1,153 +1,34 @@
-import React, { useState, useMemo } from 'react';
-import {
-  DollarSign,
-  Search,
-  Filter,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Download,
-  Receipt,
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
-import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
-import { SearchFilterBar } from '../../components/common/SearchFilterBar';
-import { Pagination } from '../../components/common/Pagination';
-import { formatDate, exportToCSV } from '../../utils/formatters';
 
 export const AdminPaymentsPage = () => {
-  const { adminPayments, formatAmount } = useApp();
+  const { fetchSubscriptionPayments, reviewSubscriptionPayment, formatAmount } = useApp();
   const { toast } = useToast();
-
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6;
-
-  const filtered = useMemo(() => {
-    return adminPayments.filter((p) => {
-      const match =
-        p.reference.toLowerCase().includes(search.toLowerCase()) ||
-        p.showroomName.toLowerCase().includes(search.toLowerCase()) ||
-        p.plan.toLowerCase().includes(search.toLowerCase());
-
-      if (!match) return false;
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-
-      return true;
-    });
-  }, [adminPayments, search, statusFilter]);
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage]);
-
-  const handleExport = () => {
-    exportToCSV(
-      'superadmin-payments-ledger',
-      filtered,
-      [
-        { key: 'reference', label: 'Payment Reference' },
-        { key: 'showroomName', label: 'Showroom' },
-        { key: 'plan', label: 'Plan' },
-        { key: 'amount', label: 'Amount' },
-        { key: 'method', label: 'Payment Method' },
-        { key: 'date', label: 'Payment Date' },
-        { key: 'status', label: 'Status' },
-      ]
-    );
-    toast.info('Exported payments ledger to CSV.', 'Export Complete');
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState('');
+  const refresh = async () => {
+    setLoading(true);
+    const { data, error } = await fetchSubscriptionPayments();
+    if (error) toast.error(error.message, 'Could not load payments');
+    else setPayments(data?.payments || []);
+    setLoading(false);
   };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Subscription Payments Ledger
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Global payment transactions across all tenant showroom subscriptions.
-          </p>
-        </div>
-
-        <Button variant="secondary" size="md" onClick={handleExport}>
-          Export Payments CSV
-        </Button>
-      </div>
-
-      <SearchFilterBar
-        searchQuery={search}
-        onSearchChange={setSearch}
-        placeholder="Search payment reference, showroom, plan..."
-        filterOptions={[
-          { label: 'All Statuses', value: 'all' },
-          { label: 'Paid', value: 'Paid' },
-          { label: 'Pending', value: 'Pending' },
-          { label: 'Failed', value: 'Failed' },
-        ]}
-        selectedFilter={statusFilter}
-        onFilterChange={setStatusFilter}
-        onExport={handleExport}
-        exportLabel="Export CSV"
-      />
-
-      <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
-              <tr>
-                <th className="py-3.5 px-6 font-semibold">Payment Ref</th>
-                <th className="py-3.5 px-6 font-semibold">Tenant Showroom</th>
-                <th className="py-3.5 px-6 font-semibold">Subscription Plan</th>
-                <th className="py-3.5 px-6 font-semibold">Amount</th>
-                <th className="py-3.5 px-6 font-semibold">Payment Gateway</th>
-                <th className="py-3.5 px-6 font-semibold">Date</th>
-                <th className="py-3.5 px-6 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-900">
-              {paginated.map((pay) => (
-                <tr key={pay.id} className="hover:bg-slate-900/60 transition-colors">
-                  <td className="py-4 px-6 font-mono font-bold text-indigo-400">
-                    {pay.reference}
-                  </td>
-                  <td className="py-4 px-6 font-bold text-white">
-                    {pay.showroomName}
-                  </td>
-                  <td className="py-4 px-6 text-slate-300">
-                    {pay.plan}
-                  </td>
-                  <td className="py-4 px-6 font-bold text-emerald-400">
-                    {formatAmount(pay.amount)}
-                  </td>
-                  <td className="py-4 px-6 text-slate-400">
-                    {pay.method}
-                  </td>
-                  <td className="py-4 px-6 text-slate-400">
-                    {formatDate(pay.date)}
-                  </td>
-                  <td className="py-4 px-6">
-                    <Badge variant={getStatusBadgeVariant(pay.status)} size="sm">
-                      {pay.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <Pagination
-          currentPage={currentPage}
-          totalItems={filtered.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-        />
-      </div>
-    </div>
-  );
+  useEffect(() => { void refresh(); }, []);
+  const review = async (payment, decision) => {
+    const action = decision === 'approve' ? 'approve' : 'reject';
+    if (action === 'reject' && !window.confirm('Reject this subscription transfer submission?')) return;
+    setWorking(payment.id);
+    const { error } = await reviewSubscriptionPayment(payment.id, { decision: action });
+    setWorking('');
+    if (error) toast.error(error.message, 'Payment review failed');
+    else { toast.success(action === 'approve' ? 'Payment approved and subscription activated.' : 'Payment marked as rejected.', 'Review saved'); await refresh(); }
+  };
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4"><div><h1 className="text-2xl font-bold text-white">Subscription Payments</h1><p className="mt-1 text-sm text-slate-400">Review bank transfers submitted by showroom owners. Approving activates one billing month.</p></div><Button variant="secondary" onClick={refresh}><RefreshCw size={15} className="mr-2"/>Refresh</Button></div>
+    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="border-b border-slate-800 bg-slate-900 text-[11px] uppercase tracking-wider text-slate-400"><tr>{['Showroom','Owner email','Amount','Transfer ref','Transfer date','Status','Review'].map((x)=><th key={x} className="px-5 py-3.5 font-semibold">{x}</th>)}</tr></thead><tbody className="divide-y divide-slate-900">{payments.map((p)=><tr key={p.id} className="text-slate-300"><td className="px-5 py-4 font-semibold text-white">{p.showroom?.name || 'Showroom'}</td><td className="px-5 py-4">{p.showroom?.email || '—'}</td><td className="px-5 py-4 font-bold text-emerald-400">{formatAmount(p.amount)}</td><td className="px-5 py-4 font-mono">{p.transfer_reference}</td><td className="px-5 py-4">{p.transfer_date}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 ${p.status==='approved'?'bg-emerald-900 text-emerald-200':p.status==='rejected'?'bg-rose-900 text-rose-200':'bg-amber-900 text-amber-200'}`}>{p.status}</span>{p.review_note && <p className="mt-1 max-w-48 text-[10px] text-slate-500">{p.review_note}</p>}</td><td className="px-5 py-4"><div className="flex gap-2">{p.status==='pending_review' && <><button disabled={!!working} onClick={()=>review(p,'approve')} title="Approve and activate subscription" className="rounded-lg bg-emerald-700 p-2 text-white disabled:opacity-50"><CheckCircle size={16}/></button><button disabled={!!working} onClick={()=>review(p,'reject')} title="Reject transfer" className="rounded-lg bg-rose-800 p-2 text-white disabled:opacity-50"><XCircle size={16}/></button></>}</div></td></tr>)}{!loading && payments.length===0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">No subscription transfer submissions yet.</td></tr>}{loading && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">Loading payment submissions…</td></tr>}</tbody></table></div></div>
+  </div>;
 };

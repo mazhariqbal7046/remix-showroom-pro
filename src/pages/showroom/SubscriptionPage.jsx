@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -6,8 +6,10 @@ import {
   ShieldCheck,
   Clock,
   Users,
+  Landmark,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
 import { formatDate } from '../../utils/formatters';
@@ -18,7 +20,30 @@ export const SubscriptionPage = () => {
     activePlan,
     partnerLimitInfo,
     updateSubscriptionPlan,
+    fetchBillingSubscription,
+    submitSubscriptionPayment,
+    formatAmount,
   } = useApp();
+  const { toast } = useToast();
+  const [billing, setBilling] = useState(null);
+  const [reference, setReference] = useState('');
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().slice(0, 10));
+  const [loadingBilling, setLoadingBilling] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const refreshBilling = async () => {
+    const { data, error } = await fetchBillingSubscription();
+    if (error) toast.error(error.message, 'Billing details unavailable');
+    else setBilling(data);
+    setLoadingBilling(false);
+  };
+  useEffect(() => { void refreshBilling(); }, []);
+  const submitTransfer = async (event) => {
+    event.preventDefault(); setSubmitting(true);
+    const { error } = await submitSubscriptionPayment({ transfer_reference: reference, transfer_date: transferDate });
+    setSubmitting(false);
+    if (error) toast.error(error.message, 'Payment submission failed');
+    else { toast.success('Transfer is pending admin verification.', 'Payment submitted'); setReference(''); await refreshBilling(); }
+  };
 
   return (
     <div className="space-y-6">
@@ -33,7 +58,7 @@ export const SubscriptionPage = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">Billing provider not connected</span>
+          <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-900">Manual bank transfer</span>
           <Link to="/pricing" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">View plan details</Link>
         </div>
       </div>
@@ -74,7 +99,7 @@ export const SubscriptionPage = () => {
                 /month
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">Online payment provider not connected yet</span>
+            <span className="text-[10px] text-slate-500">Paid transfers require admin verification</span>
           </div>
         </div>
 
@@ -125,14 +150,38 @@ export const SubscriptionPage = () => {
               <span className="text-[11px] font-semibold uppercase">Payment Method</span>
             </div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              Not connected
+              Bank transfer
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Payment details are not stored in Showroom Pro.
+              Submit transfer reference for verification.
             </div>
           </div>
         </div>
       </div>
+
+      <section className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-4 flex items-center gap-2"><Landmark className="h-5 w-5 text-blue-600"/><h3 className="font-bold text-slate-900 dark:text-white">Platform bank account</h3></div>
+          {loadingBilling ? <p className="text-sm text-slate-500">Loading payment details…</p> : billing?.payment_details ? <div className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+            <p><b>Account holder:</b> {billing.payment_details.account_holder}</p><p><b>Bank:</b> {billing.payment_details.bank_name}</p><p><b>Account number:</b> {billing.payment_details.account_number}</p>
+            {billing.payment_details.iban && <p><b>IBAN:</b> {billing.payment_details.iban}</p>}{billing.payment_details.raast_id && <p><b>Raast ID:</b> {billing.payment_details.raast_id}</p>}
+            {billing.payment_details.payment_instructions && <p className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">{billing.payment_details.payment_instructions}</p>}
+            <p className="pt-2 font-semibold">Monthly amount: {formatAmount(billing.subscription?.monthly_amount || activePlan.monthlyPrice)}</p>
+          </div> : <p className="text-sm text-amber-700">Payout bank details abhi admin ne configure nahi ki hain.</p>}
+        </div>
+        <form onSubmit={submitTransfer} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="font-bold text-slate-900 dark:text-white">Submit a bank transfer</h3>
+          <label className="block space-y-1"><span className="text-xs font-medium text-slate-600 dark:text-slate-300">Bank transfer reference / transaction ID</span><input required minLength={3} maxLength={120} value={reference} onChange={(e)=>setReference(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label>
+          <label className="block space-y-1"><span className="text-xs font-medium text-slate-600 dark:text-slate-300">Transfer date</span><input required type="date" value={transferDate} onChange={(e)=>setTransferDate(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" /></label>
+          <Button type="submit" disabled={submitting || !billing?.payment_details}>{submitting ? 'Submitting…' : 'Submit for verification'}</Button>
+          <p className="text-xs text-slate-500">Subscription activates after the platform admin verifies the transfer.</p>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+        <h3 className="mb-3 font-bold text-slate-900 dark:text-white">Submitted transfers</h3>
+        {billing?.payments?.length ? <div className="space-y-2">{billing.payments.map((payment)=><div key={payment.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-4 py-3 text-sm dark:bg-slate-800"><span>{payment.transfer_reference} · {formatDate(payment.transfer_date)}</span><span className="font-semibold">{formatAmount(payment.amount)} · {payment.status.replace('_',' ')}</span></div>)}</div> : <p className="text-sm text-slate-500">No bank transfer submissions yet.</p>}
+      </section>
 
       {/* Subscription Invoices History */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">

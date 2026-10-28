@@ -176,16 +176,26 @@ export const AppProvider = ({ children }) => {
     const data = await response.json().catch(() => ({}));
     return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Monthly closing failed.') };
   };
-  const adminRequest = async (path) => {
+  const apiRequest = async (path, { method = 'GET', body, showroom = false } = {}) => {
     const session = (await auth.getSession()).data?.session;
-    if (!session?.access_token) return { data: null, error: new Error('Admin session is required.') };
+    if (!session?.access_token) return { data: null, error: new Error('Please sign in to continue.') };
     const base = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
-    const response = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    const headers = { Authorization: `Bearer ${session.access_token}` };
+    if (showroom && showroomInfo?.id) headers['x-showroom-id'] = showroomInfo.id;
+    if (body) headers['Content-Type'] = 'application/json';
+    const response = await fetch(`${base}${path}`, { method, headers, ...(body ? { body: JSON.stringify(body) } : {}) });
     const data = await response.json().catch(() => ({}));
-    return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Admin data request failed.') };
+    return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Request failed.') };
   };
+  const adminRequest = (path, options) => apiRequest(path, options);
   const fetchAdminMetrics = () => adminRequest('/api/admin/metrics');
   const fetchAdminShowrooms = () => adminRequest('/api/admin/showrooms');
+  const fetchPlatformPaymentSettings = () => adminRequest('/api/admin/payment-settings');
+  const savePlatformPaymentSettings = (body) => adminRequest('/api/admin/payment-settings', { method: 'PUT', body });
+  const fetchSubscriptionPayments = () => adminRequest('/api/admin/subscription-payments');
+  const reviewSubscriptionPayment = (id, body) => adminRequest(`/api/admin/subscription-payments/${id}/review`, { method: 'POST', body });
+  const fetchBillingSubscription = () => apiRequest('/api/billing/subscription', { showroom: true });
+  const submitSubscriptionPayment = (body) => apiRequest('/api/billing/subscription-payments', { method: 'POST', body, showroom: true });
 
   // Active Plan Resolution
   const activePlan = useMemo(() => {
@@ -715,6 +725,12 @@ export const AppProvider = ({ children }) => {
     closeMonthlyReport,
     fetchAdminMetrics,
     fetchAdminShowrooms,
+    fetchPlatformPaymentSettings,
+    savePlatformPaymentSettings,
+    fetchSubscriptionPayments,
+    reviewSubscriptionPayment,
+    fetchBillingSubscription,
+    submitSubscriptionPayment,
     // Methods
     addCustomer,
     updateCustomer,
