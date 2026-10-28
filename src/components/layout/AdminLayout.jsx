@@ -52,7 +52,7 @@ export const AdminLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased">
+    <div className="admin-light-theme min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased">
       {/* Top Super Admin Warning Banner */}
       <div className="bg-indigo-950 border-b border-indigo-800/80 px-4 py-2 flex items-center justify-between text-xs text-indigo-200">
         <div className="flex items-center gap-2">
