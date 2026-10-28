@@ -4,6 +4,12 @@ const ThemeContext = createContext();
 
 export const COLOR_PALETTES = [
   {
+    id: 'rose-blush',
+    name: 'Rose Blush',
+    description: 'Soft pink & warm showroom',
+    colors: ['#FCF8F8', '#FBEFEF', '#F9DFDF', '#F5AFAF'],
+  },
+  {
     id: 'salesport',
     name: 'SalesPort Brand',
     description: 'B2B & Corporate Trust',
@@ -33,9 +39,15 @@ export const ThemeProvider = ({ children }) => {
   const [palette, setPalette] = useState(() => {
     try {
       const saved = localStorage.getItem('showroom_pro_color_palette');
-      return COLOR_PALETTES.some((option) => option.id === saved) ? saved : 'salesport';
+      const version = localStorage.getItem('showroom_pro_palette_version');
+      if (version !== 'rose-blush-v1') {
+        localStorage.setItem('showroom_pro_color_palette', 'rose-blush');
+        localStorage.setItem('showroom_pro_palette_version', 'rose-blush-v1');
+        return 'rose-blush';
+      }
+      return COLOR_PALETTES.some((option) => option.id === saved) ? saved : 'rose-blush';
     } catch {
-      return 'salesport';
+      return 'rose-blush';
     }
   });
 

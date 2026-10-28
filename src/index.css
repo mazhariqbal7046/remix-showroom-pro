@@ -9,6 +9,32 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Runtime color palettes: app blue and indigo accents follow the selected brand. */
+html[data-color-palette="rose-blush"] {
+  --color-blue-50: #fcf8f8;
+  --color-blue-100: #fbefef;
+  --color-blue-200: #f9dfdf;
+  --color-blue-300: #f5afaf;
+  --color-blue-400: #e88e93;
+  --color-blue-500: #d36e75;
+  --color-blue-600: #a9464d;
+  --color-blue-700: #913a41;
+  --color-blue-800: #763138;
+  --color-blue-900: #5b272d;
+  --color-blue-950: #3c191d;
+
+  --color-slate-50: #fcf8f8;
+  --color-slate-100: #fbefef;
+  --color-slate-200: #f9dfdf;
+  --color-slate-300: #f5afaf;
+  --color-slate-400: #987474;
+  --color-slate-500: #765858;
+  --color-slate-600: #60494a;
+  --color-slate-700: #483638;
+  --color-slate-800: #332628;
+  --color-slate-900: #261b1d;
+  --color-slate-950: #1a1112;
+}
+
 html[data-color-palette="salesport"] {
   --color-blue-50: #eff5ff;
   --color-blue-100: #dce8ff;
