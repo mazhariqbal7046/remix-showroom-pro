@@ -240,9 +240,54 @@ async def admin_metrics(x_admin_secret: str | None = Header(default=None), autho
     token = (authorization or "").removeprefix("Bearer ").strip()
     if not ((ADMIN_API_SECRET and x_admin_secret == ADMIN_API_SECRET) or await verify_super_admin(token)):
         raise HTTPException(403, "Admin access denied.")
-    showrooms = await supabase_rows("showrooms", {"select": "id,created_at"})
-    subscriptions = await supabase_rows("subscriptions", {"select": "status,monthly_amount"})
-    return {"signup_count": len(showrooms), "active_showrooms": sum(1 for item in subscriptions if item.get("status") in {"active", "trial"}), "subscription_count": len(subscriptions), "mrr": sum(amount(item, "monthly_amount") for item in subscriptions if item.get("status") == "active")}
+    showrooms, subscriptions, memberships, inventory, sales, bookings = await asyncio.gather(
+        supabase_rows("showrooms", {"select": "id,created_at"}),
+        supabase_rows("subscriptions", {"select": "status,monthly_amount"}),
+        supabase_rows("showroom_members", {"select": "user_id"}),
+        supabase_rows("inventory_units", {"select": "quantity"}),
+        supabase_rows("sales", {"select": "total,status"}),
+        supabase_rows("bookings", {"select": "status"}),
+    )
+    active_sales = [item for item in sales if str(item.get("status", "")).lower() not in {"cancelled", "canceled"}]
+    return {
+        "signup_count": len(showrooms),
+        "active_showrooms": sum(1 for item in subscriptions if item.get("status") in {"active", "trial"}),
+        "trial_count": sum(1 for item in subscriptions if item.get("status") == "trial"),
+        "active_subscription_count": sum(1 for item in subscriptions if item.get("status") == "active"),
+        "subscription_count": len(subscriptions),
+        "mrr": sum(amount(item, "monthly_amount") for item in subscriptions if item.get("status") == "active"),
+        "member_count": len(memberships),
+        "inventory_units": sum(int(item.get("quantity") or 0) for item in inventory),
+        "recorded_sales": len(active_sales),
+        "sales_volume": sum(amount(item, "total") for item in active_sales),
+        "active_bookings": sum(1 for item in bookings if str(item.get("status", "")).lower() not in {"cancelled", "delivered"}),
+    }
+
+
+@app.get("/api/admin/showrooms")
+async def admin_showrooms(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not await verify_super_admin(token):
+        raise HTTPException(403, "Admin access denied.")
+    showrooms, subscriptions, partners = await asyncio.gather(
+        supabase_rows("showrooms", {"select": "id,name,category,email,phone,city,country,created_at", "order": "created_at.desc"}),
+        supabase_rows("subscriptions", {"select": "showroom_id,plan_id,status,monthly_amount,started_at,next_billing_date"}),
+        supabase_rows("partners", {"select": "showroom_id,status"}),
+    )
+    subscription_by_showroom = {row["showroom_id"]: row for row in subscriptions}
+    partner_counts: dict[str, int] = {}
+    for partner in partners:
+        if partner.get("status", "Active") == "Active":
+            key = partner.get("showroom_id")
+            partner_counts[key] = partner_counts.get(key, 0) + 1
+    return {"showrooms": [
+        {
+            **row,
+            "subscription": subscription_by_showroom.get(row["id"]),
+            "active_partners": partner_counts.get(row["id"], 0),
+        }
+        for row in showrooms
+    ]}
 
 
 @app.post("/api/ai/ask")

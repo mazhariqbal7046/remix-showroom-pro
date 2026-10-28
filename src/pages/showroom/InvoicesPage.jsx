@@ -325,7 +325,7 @@ export const InvoicesPage = () => {
 
               {/* Footer Note */}
               <div className="pt-6 border-t border-slate-200 text-[10px] text-slate-400 text-center leading-relaxed">
-                Thank you for your business. Demo invoice template. Not legally compliant in every jurisdiction without statutory tax stamps.
+                Thank you for your business. Review the invoice tax details against your local requirements before issuing.
               </div>
             </div>
           </div>

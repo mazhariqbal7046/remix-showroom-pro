@@ -58,7 +58,7 @@ export const AdminLayout = () => {
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="font-semibold text-white">Super Admin Console:</span>
-          <span>Managing SaaS multi-tenant showrooms & platform subscriptions (Simulated Demo Phase 1)</span>
+          <span>Platform accounts and subscription records</span>
         </div>
         <Link
           to="/dashboard"

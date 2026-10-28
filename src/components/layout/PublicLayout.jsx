@@ -31,28 +31,6 @@ export const PublicLayout = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
-      {/* Top Banner for Demo Awareness */}
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white text-xs px-4 py-2 flex items-center justify-between shadow-xs">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-2 text-center sm:text-left">
-          <div className="flex items-center gap-2 mx-auto sm:mx-0">
-            <span className="bg-white/20 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide uppercase">
-              Phase 1 Preview
-            </span>
-            <span>
-              Commercial SaaS Frontend Demo • Ready for Supabase Backend Integration
-            </span>
-          </div>
-          <div className="flex items-center gap-3 mx-auto sm:mx-0">
-            <Link
-              to="/super-admin"
-              className="underline text-blue-100 hover:text-white text-xs font-medium flex items-center gap-1"
-            >
-              Super Admin Console <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Main Public Navigation */}
       <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -122,15 +100,10 @@ export const PublicLayout = () => {
 
             <Link to="/signup">
               <Button variant="primary" size="sm" icon={ArrowRight} iconPosition="right">
-                Start Free Trial
+                Create Account
               </Button>
             </Link>
 
-            <Link to="/dashboard">
-              <Button variant="secondary" size="sm">
-                Live Demo App
-              </Button>
-            </Link>
           </div>
 
           {/* Mobile menu trigger */}
@@ -179,7 +152,7 @@ export const PublicLayout = () => {
             <div className="pt-2 flex flex-col gap-2">
               <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="primary" className="w-full">
-                  Start Free Trial
+                  Create Account
                 </Button>
               </Link>
               <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
@@ -220,7 +193,7 @@ export const PublicLayout = () => {
               </p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>Simulated Frontend Demo • Backend Phase 2</span>
+                <span>Secure showroom management for EV dealers</span>
               </div>
             </div>
 
@@ -269,8 +242,8 @@ export const PublicLayout = () => {
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
             <p>© 2026 Showroom Pro Inc. All rights reserved. Built with React & Tailwind CSS.</p>
             <div className="flex items-center gap-6">
-              <span>Demo Frontend Mode</span>
-              <span>Initial Currency: PKR</span>
+              <span>EV showroom operations</span>
+              <span>Currency: PKR default</span>
               <span>One Plan: Rs. 10,000 / month</span>
             </div>
           </div>

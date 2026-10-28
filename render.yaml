@@ -4,6 +4,9 @@ services:
     name: showroom-pro-frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_AI_SERVICE_URL
+        value: https://showroom-pro-api.onrender.com
     routes:
       - type: rewrite
         source: /*
@@ -18,3 +21,35 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+
+  - type: web
+    runtime: python
+    name: showroom-pro-api
+    plan: free
+    region: singapore
+    buildCommand: python -m pip install -r ai-service/requirements.txt
+    startCommand: python -m uvicorn app.main:app --app-dir ai-service --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        value: https://cfhdmlnmthxsrcxwveuu.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gpt-4o-mini
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: WORKER_SECRET
+        sync: false
+      - key: ADMIN_API_SECRET
+        sync: false
+      - key: SUPER_ADMIN_EMAIL
+        value: mazhariqbal4016@gmail.com
+      - key: CLIENT_ORIGIN
+        value: https://showroom-pro-frontend.onrender.com
+      - key: NOTIFICATION_WORKER_ENABLED
+        value: "true"

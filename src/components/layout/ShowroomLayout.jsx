@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -25,7 +25,6 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  RotateCcw,
   Shield,
   HelpCircle,
   Calendar,
@@ -37,7 +36,6 @@ import {
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
-import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Badge } from '../common/Badge';
 
 export const ShowroomLayout = () => {
@@ -49,7 +47,10 @@ export const ShowroomLayout = () => {
     partnerLimitInfo,
     notifications,
     markAllNotificationsRead,
-    resetDemoData,
+    authUser,
+    authLoading,
+    isSupabaseConfigured,
+    signOut,
     formatAmount,
   } = useApp();
 
@@ -61,7 +62,6 @@ export const ShowroomLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -100,15 +100,14 @@ export const ShowroomLayout = () => {
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
-  const handleReset = () => {
-    resetDemoData();
-    toast.success('Demo data restored to pristine initial state.', 'Data Reset');
-  };
-
-  const handleLogout = () => {
-    toast.info('Simulated logout. Redirected to login page.', 'Session Ended');
+  const handleLogout = async () => {
+    await signOut();
+    toast.info('You have signed out.', 'Session Ended');
     navigate('/login');
   };
+
+  if (authLoading) return <div className="min-h-screen grid place-items-center bg-white text-slate-600">Loading showroom…</div>;
+  if (!isSupabaseConfigured || !authUser) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen flex bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased">
@@ -259,29 +258,13 @@ export const ShowroomLayout = () => {
             </div>
           </div>
 
-          {/* Right section: Global Search, Demo badge, Notification, Theme, Profile */}
+          {/* Right section: Global Search, Notification, Theme, Profile */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Quick Demo Badge */}
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] text-blue-700 dark:text-blue-300 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-              <span>Simulated Demo State</span>
-            </div>
-
             {/* Date Display */}
             <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Oct 25, 2026</span>
+              <span>{new Intl.DateTimeFormat('en-PK', { dateStyle: 'medium' }).format(new Date())}</span>
             </div>
-
-            {/* Reset Demo Data Button */}
-            <button
-              onClick={() => setResetDialogOpen(true)}
-              className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              title="Reset all demo data to default"
-              aria-label="Reset demo data"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
 
             {/* Theme Toggle */}
             <button
@@ -424,7 +407,7 @@ export const ShowroomLayout = () => {
                       className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800"
                     >
                       <LogOut className="w-4 h-4" />
-                      Sign Out (Demo)
+                      Sign Out
                     </button>
                   </div>
                 </div>
@@ -439,16 +422,6 @@ export const ShowroomLayout = () => {
         </main>
       </div>
 
-      {/* Confirm Reset Dialog */}
-      <ConfirmDialog
-        isOpen={resetDialogOpen}
-        onClose={() => setResetDialogOpen(false)}
-        onConfirm={handleReset}
-        title="Reset All Demo Data?"
-        message="This will re-initialize all customers, products, inventory, sales, purchases, partners, and expenses back to their default demo values."
-        confirmText="Reset Everything"
-        variant="danger"
-      />
     </div>
   );
 };

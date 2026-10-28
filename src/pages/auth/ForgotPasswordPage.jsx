@@ -2,19 +2,28 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Mail, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
+import { auth, isSupabaseConfigured } from '../../lib/supabase';
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) {
       setError('Please provide your registered email address.');
       return;
     }
     setError('');
+    setLoading(true);
+    const result = await auth.resetPassword(email.trim());
+    setLoading(false);
+    if (result.error) {
+      setError(result.error.message || 'Could not send password recovery email.');
+      return;
+    }
     setSubmitted(true);
   };
 
@@ -33,7 +42,7 @@ export const ForgotPasswordPage = () => {
           Reset Password
         </h2>
         <p className="mt-1 text-xs text-slate-500">
-          Enter your email to receive a password reset link (simulated in demo mode).
+          Enter the email address on your account to receive a secure recovery link.
         </p>
       </div>
 
@@ -48,7 +57,7 @@ export const ForgotPasswordPage = () => {
                 Reset Link Dispatched
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                If an account exists for <span className="font-medium text-slate-800 dark:text-slate-200">{email}</span>, a simulated recovery link has been sent.
+                If an account exists for <span className="font-medium text-slate-800 dark:text-slate-200">{email}</span>, Supabase has sent a password recovery link.
               </p>
               <Link to="/login" className="block mt-4">
                 <Button variant="primary" className="w-full">
@@ -75,8 +84,8 @@ export const ForgotPasswordPage = () => {
                 {error && <p className="text-[11px] text-rose-500 mt-1">{error}</p>}
               </div>
 
-              <Button type="submit" variant="primary" size="lg" className="w-full">
-                Send Reset Instructions
+              <Button type="submit" variant="primary" size="lg" className="w-full" disabled={loading || !isSupabaseConfigured}>
+                {loading ? 'Sending…' : 'Send Reset Instructions'}
               </Button>
 
               <div className="text-center pt-2">

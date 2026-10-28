@@ -8,7 +8,6 @@ import {
   Palette,
   Save,
   CheckCircle2,
-  RotateCcw,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { COLOR_PALETTES, useTheme } from '../../context/ThemeContext';
@@ -17,7 +16,7 @@ import { Button } from '../../components/common/Button';
 import { CURRENCY_MAP } from '../../utils/formatters';
 
 export const SettingsPage = () => {
-  const { showroomInfo, updateShowroomSettings, resetDemoData } = useApp();
+  const { showroomInfo, updateShowroomSettings } = useApp();
   const { theme, toggleTheme, palette, setPalette } = useTheme();
   const { toast } = useToast();
 

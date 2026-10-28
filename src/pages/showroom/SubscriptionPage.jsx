@@ -4,12 +4,10 @@ import {
   CreditCard,
   Calendar,
   ShieldCheck,
-  RefreshCw,
   Clock,
   Users,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
 import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
 import { formatDate } from '../../utils/formatters';
@@ -21,13 +19,6 @@ export const SubscriptionPage = () => {
     partnerLimitInfo,
     updateSubscriptionPlan,
   } = useApp();
-
-  const { toast } = useToast();
-
-  const handleSimulateRenewal = () => {
-    updateSubscriptionPlan(subscription.planId);
-    toast.info(`Demo renewal recorded for ${activePlan.name} at Rs. 10,000/month.`, 'Renewal Simulated');
-  };
 
   return (
     <div className="space-y-6">
@@ -42,9 +33,7 @@ export const SubscriptionPage = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="secondary" icon={RefreshCw} onClick={handleSimulateRenewal}>
-            Simulate Renewal
-          </Button>
+          <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">Billing provider not connected</span>
           <Link to="/pricing" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">View plan details</Link>
         </div>
       </div>
@@ -110,7 +99,7 @@ export const SubscriptionPage = () => {
               <span className="text-[11px] font-semibold uppercase">Next Renewal</span>
             </div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              {formatDate(subscription.renewalDate)}
+              {subscription.renewalDate ? formatDate(subscription.renewalDate) : 'Not scheduled'}
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
               Billing cycle: Monthly
@@ -123,10 +112,10 @@ export const SubscriptionPage = () => {
               <span className="text-[11px] font-semibold uppercase">Subscription Age</span>
             </div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              Since {formatDate(subscription.startDate)}
+              {subscription.startDate ? `Since ${formatDate(subscription.startDate)}` : 'No start date recorded'}
             </div>
             <div className="text-[11px] text-emerald-600 font-medium mt-1">
-              Active & in good standing
+              Current status: {subscription.status}
             </div>
           </div>
 
@@ -136,10 +125,10 @@ export const SubscriptionPage = () => {
               <span className="text-[11px] font-semibold uppercase">Payment Method</span>
             </div>
             <div className="text-lg font-bold text-slate-900 dark:text-white">
-              Visa ending {subscription.cardLast4}
+              Not connected
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Simulated payment card
+              Payment details are not stored in Showroom Pro.
             </div>
           </div>
         </div>
@@ -154,7 +143,7 @@ export const SubscriptionPage = () => {
             </h3>
             <p className="text-xs text-slate-500">Historical payments for your showroom license</p>
           </div>
-          <span className="text-xs font-medium text-slate-500">All payments simulated</span>
+          <span className="text-xs font-medium text-slate-500">Recorded transactions only</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -166,11 +155,10 @@ export const SubscriptionPage = () => {
                 <th className="py-3 px-6 font-semibold">Plan Name</th>
                 <th className="py-3 px-6 font-semibold">Amount</th>
                 <th className="py-3 px-6 font-semibold">Status</th>
-                <th className="py-3 px-6 font-semibold text-right">Receipt</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {subscription.invoices.map((inv) => (
+              {subscription.invoices.length ? subscription.invoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                   <td className="py-3.5 px-6 font-mono font-bold text-blue-600 dark:text-blue-400">
                     {inv.id}
@@ -189,16 +177,8 @@ export const SubscriptionPage = () => {
                       {inv.status}
                     </Badge>
                   </td>
-                  <td className="py-3.5 px-6 text-right">
-                    <button
-                      onClick={() => toast.info(`Receipt for ${inv.id} downloaded (simulated).`, 'Receipt Exported')}
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      Download PDF
-                    </button>
-                  </td>
                 </tr>
-              ))}
+              )) : <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500">No subscription payments have been recorded. Billing checkout is unavailable until a payment provider is connected.</td></tr>}
             </tbody>
           </table>
         </div>

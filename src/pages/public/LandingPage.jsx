@@ -52,7 +52,7 @@ export const LandingPage = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup">
               <Button size="lg" variant="primary" icon={ArrowRight} iconPosition="right" className="w-full sm:w-auto shadow-md">
-                Start Free Trial
+                Create Showroom Account
               </Button>
             </Link>
             <a href="#features">
@@ -70,11 +70,11 @@ export const LandingPage = () => {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5">
               <Check className="w-4 h-4 text-emerald-500" />
-              14-Day Free Evaluation
+              Supabase-secured account access
             </span>
             <span className="flex items-center gap-1.5">
               <Check className="w-4 h-4 text-emerald-500" />
-              No Credit Card Required
+              PKR pricing shown before signup
             </span>
             <span className="flex items-center gap-1.5">
               <Check className="w-4 h-4 text-emerald-500" />
@@ -82,68 +82,17 @@ export const LandingPage = () => {
             </span>
           </div>
         </div>
+      </section>
 
-        {/* 2. PRODUCT DASHBOARD PREVIEW */}
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-14 max-w-5xl">
-          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-2xl p-2 sm:p-4 ring-1 ring-slate-900/5">
-            <div className="bg-slate-100 dark:bg-slate-950 rounded-xl p-3 sm:p-5 border border-slate-200 dark:border-slate-800">
-              {/* Window chrome */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-400" />
-                  <div className="w-3 h-3 rounded-full bg-amber-400" />
-                  <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                  <span className="text-xs text-slate-400 ml-2 font-mono">showroompro.app/dashboard</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="success" size="sm">Active Demo Session</Badge>
-                  <Badge variant="indigo" size="sm">Showroom Pro · Rs. 10,000/month</Badge>
-                </div>
-              </div>
-
-              {/* Mock Dashboard Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                  <span className="text-[11px] text-slate-400 uppercase font-semibold">Total Revenue</span>
-                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">Rs. 1,310,000</div>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">↑ +14.2% vs last month</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                  <span className="text-[11px] text-slate-400 uppercase font-semibold">Customers</span>
-                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">6 Active</div>
-                  <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">+2 this week</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                  <span className="text-[11px] text-slate-400 uppercase font-semibold">Stock Valuation</span>
-                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">Rs. 4,120,500</div>
-                  <span className="text-[11px] text-slate-500 font-medium">8 Categories</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-                  <span className="text-[11px] text-slate-400 uppercase font-semibold">Partner Allocation</span>
-                  <div className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mt-1">Unlimited</div>
-                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Included in one plan</span>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-900 dark:text-white">Live Point-of-Sale & Inventory Sync</h4>
-                    <p className="text-[11px] text-slate-400">Inventory automatically decrements when sales invoices are generated.</p>
-                  </div>
-                </div>
-                <Link to="/dashboard">
-                  <Button size="sm" variant="primary">Launch Interactive Demo →</Button>
-                </Link>
-              </div>
-            </div>
+        {/* 2. SHOWROOM WORKFLOW */}
+      <section className="container mx-auto px-4 sm:px-6 lg:px-8 mt-10 max-w-5xl" aria-label="Showroom workflow">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="mb-6 text-center"><h2 className="text-xl font-bold text-slate-900">One workflow for EV showroom operations</h2><p className="mt-2 text-sm text-slate-500">Keep the customer, bike, booking, payments and delivery record together.</p></div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            {['Register bike stock', 'Record customer booking', 'Track advance & balance', 'Complete delivery'].map((step, index) => <div key={step} className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center"><div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">{index + 1}</div><div className="text-sm font-semibold text-slate-800">{step}</div></div>)}
           </div>
         </div>
       </section>
-
       {/* 3. MAIN FEATURES GRID */}
       <section id="features" className="py-20 bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
@@ -274,7 +223,7 @@ export const LandingPage = () => {
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xl">
               <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-4 flex items-center justify-between">
                 <span>Showroom Pro Feature Checklist</span>
-                <Badge variant="success" size="sm">Phase 1 Complete</Badge>
+                <Badge variant="success" size="sm">Showroom operations</Badge>
               </h4>
               <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                 <div className="py-2.5 flex items-center justify-between">
@@ -307,7 +256,7 @@ export const LandingPage = () => {
                 </div>
                 <div className="py-2.5 flex items-center justify-between">
                   <span className="text-slate-600 dark:text-slate-300">Supabase Backend Hooks</span>
-                  <span className="text-blue-600 font-semibold">Phase 2 Target</span>
+                  <span className="text-emerald-600 font-semibold">Connected</span>
                 </div>
               </div>
             </div>
@@ -400,7 +349,7 @@ export const LandingPage = () => {
                 What is the initial default currency?
               </h5>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                PKR (Pakistani Rupee) is configured as the initial demo currency. You can switch between PKR, USD, EUR, GBP, AED, or SAR at any time in Showroom Settings.
+                PKR is the default showroom currency. Currency selection is available in Showroom Settings.
               </p>
             </div>
 
@@ -409,7 +358,7 @@ export const LandingPage = () => {
                 Is this application ready for backend integration?
               </h5>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Yes. All frontend states, routing, modals, and tables are structured cleanly with a clean service layer ready for seamless Supabase PostgreSQL & Auth integration in Phase 2.
+                Yes. Account authentication and showroom records use Supabase. Email and online subscription payments depend on their provider configuration.
               </p>
             </div>
           </div>
@@ -423,12 +372,12 @@ export const LandingPage = () => {
             Ready to upgrade your showroom management?
           </h3>
           <p className="text-blue-100 text-sm mb-8 leading-relaxed">
-            Test the live interactive dashboard right now with preloaded showroom demo records.
+            Create an account to set up your own showroom workspace.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup">
               <Button size="lg" className="w-full sm:w-auto bg-white text-blue-700 hover:bg-blue-50 font-semibold border-none">
-                Start Free Evaluation
+                Create Showroom Account
               </Button>
             </Link>
             <Link to="/dashboard">

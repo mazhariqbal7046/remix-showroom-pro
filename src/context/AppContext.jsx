@@ -23,19 +23,20 @@ import {
   INITIAL_PROFIT_SHARES,
   INITIAL_SETTLEMENTS,
   INITIAL_WITHDRAWALS,
-  FARHAN_CROWN_DEMO_DATA,
 } from '../data/initialData';
 import { calculateFinancials, normaliseBooking, getApplicableAllocation, todayISO } from '../utils/businessLogic';
-import { auth, ensureShowroom, isSupabaseConfigured, loadShowroomData, queueEmail, removeEntity, syncBookingPayment, syncEntity } from '../lib/supabase';
+import { auth, ensureShowroom, isSupabaseConfigured, loadShowroomData, queueEmail, removeEntity, syncBookingPayment, syncEntity, syncSale, syncPurchase, syncShowroomProfile } from '../lib/supabase';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   // Safe local storage load helper
+  // Business records are loaded from the authenticated showroom database.
+  // Old browser-local demo records must never be presented as live business data.
   const loadLocal = (key, fallback) => {
+    if (key !== 'pending_onboarding') return fallback;
     try {
-      const data = localStorage.getItem(`showroom_pro_${key}`);
-      return data ? JSON.parse(data) : fallback;
+      return JSON.parse(localStorage.getItem('showroom_pro_pending_onboarding') || '{}');
     } catch {
       return fallback;
     }
@@ -102,7 +103,7 @@ export const AppProvider = ({ children }) => {
   const [profitShareHistory, setProfitShareHistory] = useState(() => loadLocal('profit_share_history', INITIAL_PROFIT_SHARES));
   const [settlements, setSettlements] = useState(() => loadLocal('settlements', INITIAL_SETTLEMENTS));
   const [withdrawals, setWithdrawals] = useState(() => loadLocal('withdrawals', INITIAL_WITHDRAWALS));
-  const [currentRole, setCurrentRole] = useState('showroom_owner'); // 'showroom_owner' | 'super_admin'
+  const [currentRole, setCurrentRole] = useState('showroom_owner'); // UI role follows the authenticated account only.
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
 
@@ -124,30 +125,38 @@ export const AppProvider = ({ children }) => {
     const showroomResult = await ensureShowroom({ user, metadata: pending });
     if (showroomResult.error || !showroomResult.data) return;
     const showroom = showroomResult.data;
-    setShowroomInfo((current) => ({ ...current, id: showroom.id, name: showroom.name, category: showroom.category || current.category, address: showroom.address || current.address, currency: showroom.currency || current.currency }));
+    setShowroomInfo((current) => ({ ...current, ...showroom, id: showroom.id, name: showroom.name, category: showroom.category || current.category, address: showroom.address || current.address, currency: showroom.currency || current.currency }));
+    setUserProfile({ fullName: user.user_metadata?.fullName || user.user_metadata?.full_name || '', email: user.email || '', phone: showroom.phone || user.user_metadata?.phone || '', role: user.app_metadata?.role === 'super_admin' ? 'Super Admin' : 'Owner', avatar: '' });
     const loaded = await loadShowroomData(showroom.id);
     if (loaded.error || !loaded.data) return;
     const remote = loaded.data;
-    setCustomers(remote.customers); setProducts(remote.products); setBookings(remote.bookings); setSales(remote.sales); setExpenses(remote.expenses); setPartners(remote.partners); setPartnerInvestments(remote.partnerInvestments); setOwnershipHistory(remote.ownershipHistory); setProfitShareHistory(remote.profitShareHistory); setSettlements(remote.settlements); setWithdrawals(remote.withdrawals);
+    setCustomers(remote.customers); setProducts(remote.products); setBookings(remote.bookings); setSales(remote.sales); setExpenses(remote.expenses); setPartners(remote.partners); setPartnerInvestments(remote.partnerInvestments); setOwnershipHistory(remote.ownershipHistory); setProfitShareHistory(remote.profitShareHistory); setSettlements(remote.settlements); setWithdrawals(remote.withdrawals); setSuppliers(remote.suppliers || []); setPurchases(remote.purchases || []);
+    if (remote.subscription) setSubscription({ ...INITIAL_SUBSCRIPTION, ...remote.subscription, status: remote.subscription.status === 'trial' ? 'Trial' : remote.subscription.status });
     ['customers', 'products', 'bookings', 'sales', 'expenses', 'partners', 'partner_investments', 'ownership_history', 'profit_share_history', 'settlements', 'withdrawals'].forEach((key) => saveLocal(key, remote[key === 'partner_investments' ? 'partnerInvestments' : key] || []));
-    try { localStorage.removeItem('showroom_pro_pending_onboarding'); } catch {}
-  };
-
-  // Persist harmless demo states to localStorage
-  const saveLocal = (key, value) => {
     try {
-      localStorage.setItem(`showroom_pro_${key}`, JSON.stringify(value));
+      [
+        'showroom_info', 'user_profile', 'subscription', 'customers', 'products', 'suppliers',
+        'sales', 'purchases', 'partners', 'expenses', 'notifications', 'admin_showrooms',
+        'admin_payments', 'admin_logs', 'platform_settings', 'bookings', 'partner_investments',
+        'ownership_history', 'profit_share_history', 'settlements', 'withdrawals',
+        'showroom_pro_pending_onboarding',
+      ].forEach((key) => localStorage.removeItem(key));
     } catch {}
   };
 
+  // Local storage is intentionally not used for business records. Supabase is
+  // the source of truth; silently caching failed writes made the old demo look real.
+  const saveLocal = () => {};
+  const newRecordId = () => globalThis.crypto.randomUUID();
+
   const signIn = async (email, password) => {
-    if (!isSupabaseConfigured) return { data: null, error: null, demo: true };
+    if (!isSupabaseConfigured) throw new Error('Showroom Pro is not connected to Supabase yet. Configure the Supabase URL and publishable key before signing in.');
     const result = await auth.signIn(email, password);
     if (result.error) throw result.error;
     return result;
   };
   const signUp = async ({ email, password, metadata }) => {
-    if (!isSupabaseConfigured) return { data: null, error: null, demo: true };
+    if (!isSupabaseConfigured) throw new Error('Showroom Pro is not connected to Supabase yet. Configure the Supabase URL and publishable key before creating an account.');
     try { localStorage.setItem('showroom_pro_pending_onboarding', JSON.stringify(metadata || {})); } catch {}
     const result = await auth.signUp({ email, password, metadata });
     if (result.error) throw result.error;
@@ -167,14 +176,16 @@ export const AppProvider = ({ children }) => {
     const data = await response.json().catch(() => ({}));
     return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Monthly closing failed.') };
   };
-  const fetchAdminMetrics = async () => {
+  const adminRequest = async (path) => {
     const session = (await auth.getSession()).data?.session;
     if (!session?.access_token) return { data: null, error: new Error('Admin session is required.') };
     const base = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
-    const response = await fetch(`${base}/api/admin/metrics`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    const response = await fetch(`${base}${path}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
     const data = await response.json().catch(() => ({}));
-    return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Admin metrics request failed.') };
+    return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'Admin data request failed.') };
   };
+  const fetchAdminMetrics = () => adminRequest('/api/admin/metrics');
+  const fetchAdminShowrooms = () => adminRequest('/api/admin/showrooms');
 
   // Active Plan Resolution
   const activePlan = useMemo(() => {
@@ -245,7 +256,7 @@ export const AppProvider = ({ children }) => {
   const addCustomer = (customerData) => {
     const newCust = {
       ...customerData,
-      id: `CUST-${String(customers.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       totalPurchases: Number(customerData.totalPurchases) || 0,
       outstandingBalance: Number(customerData.outstandingBalance) || 0,
       registrationDate: customerData.registrationDate || new Date().toISOString().slice(0, 10),
@@ -276,7 +287,7 @@ export const AppProvider = ({ children }) => {
   const addProduct = (productData) => {
     const newProd = {
       ...productData,
-      id: `PROD-${String(products.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       costPrice: Number(productData.costPrice) || 0,
       sellingPrice: Number(productData.sellingPrice) || 0,
       quantity: Math.max(0, Number(productData.quantity) || 0),
@@ -322,12 +333,13 @@ export const AppProvider = ({ children }) => {
   const addSupplier = (supplierData) => {
     const newSup = {
       ...supplierData,
-      id: `SUP-${String(suppliers.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       outstandingBalance: Number(supplierData.outstandingBalance) || 0,
     };
     const updated = [newSup, ...suppliers];
     setSuppliers(updated);
     saveLocal('suppliers', updated);
+    void syncEntity('suppliers', newSup, showroomInfo.id);
     return newSup;
   };
 
@@ -335,20 +347,22 @@ export const AppProvider = ({ children }) => {
     const updated = suppliers.map(s => s.id === id ? { ...s, ...updatedFields } : s);
     setSuppliers(updated);
     saveLocal('suppliers', updated);
+    void syncEntity('suppliers', updated.find((item) => item.id === id), showroomInfo.id);
   };
 
   const deleteSupplier = (id) => {
     const updated = suppliers.filter(s => s.id !== id);
     setSuppliers(updated);
     saveLocal('suppliers', updated);
+    void removeEntity('suppliers', id);
   };
 
   // Sales & Invoices Actions
   const addSale = (saleData) => {
-    const invNum = `INV-2026-${String(sales.length + 1).padStart(3, '0')}`;
+    const invNum = `INV-${new Date().getFullYear()}-${Date.now()}`;
     const newSale = {
       ...saleData,
-      id: `SALE-${1000 + sales.length + 1}`,
+      id: newRecordId(),
       invoiceNumber: invNum,
       date: saleData.date || new Date().toISOString().slice(0, 10),
       subtotal: Number(saleData.subtotal) || 0,
@@ -359,44 +373,31 @@ export const AppProvider = ({ children }) => {
       status: Number(saleData.paidAmount) >= Number(saleData.total) ? 'Paid' : (Number(saleData.paidAmount) > 0 ? 'Partially Paid' : 'Unpaid'),
     };
 
-    // Update product quantities (deduct sold quantities)
-    if (saleData.items && saleData.items.length) {
-      setProducts(prevProducts => {
-        const productUpdates = prevProducts.map(prod => {
-          const soldItem = saleData.items.find(i => i.productId === prod.id || i.productName === prod.name);
-          if (soldItem) {
-            const newQty = Math.max(0, prod.quantity - Number(soldItem.quantity));
-            return { ...prod, quantity: newQty };
-          }
-          return prod;
-        });
-        saveLocal('products', productUpdates);
-        return productUpdates;
-      });
+    for (const item of saleData.items || []) {
+      const product = products.find((p) => p.id === item.productId || p.name === item.productName);
+      if (product && Number(item.quantity || 0) > Number(product.quantity || 0) - Number(product.reservedQuantity || 0)) {
+        throw new Error(`Only ${Math.max(0, Number(product.quantity || 0) - Number(product.reservedQuantity || 0))} unreserved ${product.name} unit(s) are available.`);
+      }
     }
+    const productUpdates = products.map((product) => {
+      const soldQuantity = (saleData.items || []).filter((item) => item.productId === product.id || item.productName === product.name).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+      return soldQuantity ? { ...product, quantity: Math.max(0, Number(product.quantity || 0) - soldQuantity) } : product;
+    });
+    setProducts(productUpdates);
+    productUpdates.filter((product) => product.quantity !== products.find((old) => old.id === product.id)?.quantity).forEach((product) => void syncEntity('inventory_units', product, showroomInfo.id));
 
     // Update customer purchases and balance if linked
     if (saleData.customerId) {
-      setCustomers(prevCust => {
-        const custUpdates = prevCust.map(c => {
-          if (c.id === saleData.customerId) {
-            return {
-              ...c,
-              totalPurchases: (Number(c.totalPurchases) || 0) + newSale.total,
-              outstandingBalance: (Number(c.outstandingBalance) || 0) + newSale.remainingBalance,
-            };
-          }
-          return c;
-        });
-        saveLocal('customers', custUpdates);
-        return custUpdates;
-      });
+      const customerUpdates = customers.map((customer) => customer.id === saleData.customerId ? { ...customer, totalPurchases: Number(customer.totalPurchases || 0) + newSale.total, outstandingBalance: Number(customer.outstandingBalance || 0) + newSale.remainingBalance } : customer);
+      setCustomers(customerUpdates);
+      const customer = customerUpdates.find((item) => item.id === saleData.customerId);
+      if (customer) void syncEntity('customers', customer, showroomInfo.id);
     }
 
     const updatedSales = [newSale, ...sales];
     setSales(updatedSales);
     saveLocal('sales', updatedSales);
-    void syncEntity('sales', newSale, showroomInfo.id);
+    void syncSale(newSale, showroomInfo.id);
 
     // Add notification
     addNotification({
@@ -410,16 +411,28 @@ export const AppProvider = ({ children }) => {
   };
 
   const deleteSale = (id) => {
+    const sale = sales.find((item) => item.id === id);
+    if (!sale) return;
     const updated = sales.filter(s => s.id !== id);
     setSales(updated);
     saveLocal('sales', updated);
+    void removeEntity('sales', id);
+    const restoredProducts = products.map((product) => ({ ...product, quantity: Number(product.quantity || 0) + (sale.items || []).filter((item) => item.productId === product.id || item.productName === product.name).reduce((sum, item) => sum + Number(item.quantity || 0), 0) }));
+    setProducts(restoredProducts);
+    restoredProducts.filter((product) => product.quantity !== products.find((old) => old.id === product.id)?.quantity).forEach((product) => void syncEntity('inventory_units', product, showroomInfo.id));
+    if (sale.customerId) {
+      const updatedCustomers = customers.map((customer) => customer.id === sale.customerId ? { ...customer, totalPurchases: Math.max(0, Number(customer.totalPurchases || 0) - Number(sale.total || 0)), outstandingBalance: Math.max(0, Number(customer.outstandingBalance || 0) - Number(sale.remainingBalance || 0)) } : customer);
+      setCustomers(updatedCustomers);
+      const customer = updatedCustomers.find((item) => item.id === sale.customerId);
+      if (customer) void syncEntity('customers', customer, showroomInfo.id);
+    }
   };
 
   // Purchases Actions
   const addPurchase = (purchaseData) => {
     const newPur = {
       ...purchaseData,
-      id: `PUR-${String(purchases.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       date: purchaseData.date || new Date().toISOString().slice(0, 10),
       totalCost: Number(purchaseData.totalCost) || 0,
       paidAmount: Number(purchaseData.paidAmount) || 0,
@@ -433,11 +446,15 @@ export const AppProvider = ({ children }) => {
         const productUpdates = prevProducts.map(prod => {
           const purItem = purchaseData.items.find(i => i.productName === prod.name || i.productId === prod.id);
           if (purItem) {
-            return { ...prod, quantity: prod.quantity + Number(purItem.quantity) };
+          const oldQuantity = Number(prod.quantity || 0);
+          const receivedQuantity = Number(purItem.quantity || 0);
+          const unitCost = Number(purItem.unitCost || 0);
+          return { ...prod, quantity: oldQuantity + receivedQuantity, costPrice: oldQuantity + receivedQuantity > 0 ? ((oldQuantity * Number(prod.costPrice || 0)) + (receivedQuantity * unitCost)) / (oldQuantity + receivedQuantity) : unitCost };
           }
           return prod;
         });
         saveLocal('products', productUpdates);
+        productUpdates.filter((product) => product.quantity !== prevProducts.find((old) => old.id === product.id)?.quantity).forEach((product) => void syncEntity('inventory_units', product, showroomInfo.id));
         return productUpdates;
       });
     }
@@ -445,6 +462,7 @@ export const AppProvider = ({ children }) => {
     const updated = [newPur, ...purchases];
     setPurchases(updated);
     saveLocal('purchases', updated);
+    void syncPurchase(newPur, showroomInfo.id);
     return newPur;
   };
 
@@ -452,7 +470,7 @@ export const AppProvider = ({ children }) => {
   const addPartner = (partnerData) => {
     const newPartner = {
       ...partnerData,
-      id: `PART-${String(partners.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       joiningDate: partnerData.joiningDate || new Date().toISOString().slice(0, 10),
       status: 'Active',
     };
@@ -481,7 +499,7 @@ export const AppProvider = ({ children }) => {
   const addExpense = (expenseData) => {
     const newExp = {
       ...expenseData,
-      id: `EXP-${String(expenses.length + 1).padStart(3, '0')}`,
+      id: newRecordId(),
       amount: Number(expenseData.amount) || 0,
       date: expenseData.date || new Date().toISOString().slice(0, 10),
     };
@@ -515,21 +533,8 @@ export const AppProvider = ({ children }) => {
       ...subscription,
       planId,
       billingInterval: 'monthly',
-      status: 'Active',
-      lastPaymentAmount: selectedPlan.monthlyPrice,
-      renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      invoices: [
-        {
-          id: `SUB-INV-${Math.floor(100 + Math.random() * 900)}`,
-          date: new Date().toISOString().slice(0, 10),
-          plan: selectedPlan.name,
-          amount: selectedPlan.monthlyPrice,
-          status: 'Paid',
-          receiptUrl: '#',
-        },
-        ...subscription.invoices,
-      ],
+      status: subscription.status || 'Trial',
+      invoices: subscription.invoices || [],
     };
     setSubscription(newSub);
     saveLocal('subscription', newSub);
@@ -569,12 +574,21 @@ export const AppProvider = ({ children }) => {
   // EV booking, finance and partner accounting actions
   const persist = (setter, key, value) => { setter(value); saveLocal(key, value); return value; };
   const addBooking = (data) => {
-    const next = { ...data, id: `BOOK-${Date.now()}`, bookingNumber: data.bookingNumber || `BK-${new Date().getFullYear()}-${String(bookings.length + 1).padStart(3, '0')}`, payments: data.payments || [], status: data.status || 'Pending', deliveryStatus: data.deliveryStatus || 'Reserved' };
+    const initialAmount = Number(data.amountReceived || 0);
+    const initialPayment = initialAmount > 0 ? [{ id: newRecordId(), receiptNumber: `RCT-${new Date().getFullYear()}-${Date.now()}`, date: data.bookingDate || new Date().toISOString().slice(0, 10), amount: initialAmount, method: data.paymentMethod || 'Cash', reference: data.paymentReference || null }] : [];
+    const next = { ...data, id: newRecordId(), bookingNumber: data.bookingNumber || `BK-${new Date().getFullYear()}-${Date.now()}`, payments: data.payments || initialPayment, status: data.status || 'Pending', deliveryStatus: data.deliveryStatus || 'Reserved' };
     const product = products.find((item) => item.id === next.bikeProductId);
     const activeReservations = bookings.filter((item) => item.bikeProductId === next.bikeProductId && !['Cancelled', 'Delivered'].includes(item.status)).length;
     if (product && activeReservations >= Number(product.quantity || 0)) throw new Error(`No available ${product.name} unit remains for reservation.`);
     const normalized = normaliseBooking(next);
     void syncEntity('bookings', normalized, showroomInfo.id);
+    normalized.payments.forEach((payment) => void syncBookingPayment(normalized.id, payment));
+    if (product) {
+      const productsUpdated = products.map((item) => item.id === product.id ? { ...item, reservedQuantity: Number(item.reservedQuantity || 0) + 1 } : item);
+      setProducts(productsUpdated);
+      const changed = productsUpdated.find((item) => item.id === product.id);
+      void syncEntity('inventory_units', changed, showroomInfo.id);
+    }
     return persist(setBookings, 'bookings', [normalized, ...bookings]);
   };
   const updateBooking = (id, fields) => {
@@ -582,15 +596,23 @@ export const AppProvider = ({ children }) => {
     if (!current) throw new Error('Booking not found');
     const next = normaliseBooking({ ...current, ...fields });
     if (next.status === 'Delivered' && current.status !== 'Delivered' && !current.inventoryDeducted && current.bikeProductId) {
-      const updatedProducts = products.map((product) => product.id === current.bikeProductId ? { ...product, quantity: Math.max(0, Number(product.quantity || 0) - 1) } : product);
+      const updatedProducts = products.map((product) => product.id === current.bikeProductId ? { ...product, quantity: Math.max(0, Number(product.quantity || 0) - 1), reservedQuantity: Math.max(0, Number(product.reservedQuantity || 0) - 1) } : product);
       setProducts(updatedProducts);
       saveLocal('products', updatedProducts);
+      const changed = updatedProducts.find((product) => product.id === current.bikeProductId);
+      if (changed) void syncEntity('inventory_units', changed, showroomInfo.id);
       next.inventoryDeducted = true;
+    } else if (next.status === 'Cancelled' && current.status !== 'Cancelled' && current.status !== 'Delivered' && current.bikeProductId) {
+      const updatedProducts = products.map((product) => product.id === current.bikeProductId ? { ...product, reservedQuantity: Math.max(0, Number(product.reservedQuantity || 0) - 1) } : product);
+      setProducts(updatedProducts);
+      const changed = updatedProducts.find((product) => product.id === current.bikeProductId);
+      if (changed) void syncEntity('inventory_units', changed, showroomInfo.id);
     }
     void syncEntity('bookings', next, showroomInfo.id);
     if (next.status === 'Delivered' && current.status !== 'Delivered') {
       const customer = customers.find((item) => item.id === next.customerId);
-      if (customer?.email) void queueEmailNotification({ eventType: 'delivery_complete', destination: customer.email, subject: `Bike delivery completed ${next.bookingNumber}`, body: `Hello ${next.customerName}, your ${next.bikeBrand} ${next.bikeModel} has been marked delivered.`, recipientType: 'customer', recipientId: next.customerId });
+      const destination = customer?.email || next.customerEmail;
+      if (destination) void queueEmailNotification({ eventType: 'delivery_complete', destination, subject: `Bike delivery completed ${next.bookingNumber}`, body: `Hello ${next.customerName}, your ${next.bikeBrand} ${next.bikeModel} has been marked delivered.`, recipientType: 'customer', recipientId: next.customerId });
     }
     return persist(setBookings, 'bookings', bookings.map((booking) => booking.id === id ? next : booking));
   };
@@ -599,29 +621,31 @@ export const AppProvider = ({ children }) => {
     if (!booking) throw new Error('Booking not found');
     const outstanding = Math.max(0, Number(booking.totalPrice || 0) - Number(booking.amountReceived || 0));
     if (Number(payment.amount || 0) > outstanding && !payment.allowAdvance) throw new Error('Payment exceeds outstanding balance. Confirm an advance or refund first.');
-    const item = { ...payment, id: `PAY-${Date.now()}`, receiptNumber: payment.receiptNumber || `RCT-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`, date: payment.date || new Date().toISOString().slice(0, 10) };
+    const item = { ...payment, id: newRecordId(), receiptNumber: payment.receiptNumber || `RCT-${new Date().getFullYear()}-${Date.now()}`, date: payment.date || new Date().toISOString().slice(0, 10) };
     const received = [...(booking.payments || []), item].reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const status = received >= Number(booking.totalPrice) ? 'Fully Paid' : received > 0 ? 'Partially Paid' : booking.status;
     void syncBookingPayment(booking.id, item);
     return persist(setBookings, 'bookings', bookings.map((b) => b.id === id ? normaliseBooking({ ...b, payments: [...(b.payments || []), item], amountReceived: received, status }) : b));
   };
-  const addPartnerInvestment = (data) => { const item = { ...data, id: `INVST-${Date.now()}`, amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_capital_entries', { ...item, entryDate: item.date || item.entryDate, entryType: item.entryType || 'initial' }, showroomInfo.id); return persist(setPartnerInvestments, 'partner_investments', [item, ...partnerInvestments]); };
-  const addSettlement = (data) => { const item = { ...data, id: `SET-${Date.now()}`, amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_settlements', { ...item, settlementDate: item.date || item.settlementDate, settlementType: item.type || 'Profit payment' }, showroomInfo.id); return persist(setSettlements, 'settlements', [item, ...settlements]); };
-  const addWithdrawal = (data) => { const item = { ...data, id: `WD-${Date.now()}`, amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_settlements', { ...item, settlementDate: item.date || item.settlementDate, settlementType: 'Withdrawal' }, showroomInfo.id); return persist(setWithdrawals, 'withdrawals', [item, ...withdrawals]); };
-  const addOwnershipArrangement = (data) => { const item = { ...data, id: `OWN-${Date.now()}` }; void syncEntity('partner_allocations', { ...item, allocationType: 'ownership' }, showroomInfo.id); return persist(setOwnershipHistory, 'ownership_history', [item, ...ownershipHistory]); };
-  const addProfitShareArrangement = (data) => { const item = { ...data, id: `PS-${Date.now()}` }; void syncEntity('partner_allocations', { ...item, allocationType: 'profit_sharing' }, showroomInfo.id); return persist(setProfitShareHistory, 'profit_share_history', [item, ...profitShareHistory]); };
+  const addPartnerInvestment = (data) => { const item = { ...data, id: newRecordId(), amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_capital_entries', { ...item, entryDate: item.date || item.entryDate, entryType: item.entryType || 'initial' }, showroomInfo.id); return persist(setPartnerInvestments, 'partner_investments', [item, ...partnerInvestments]); };
+  const addSettlement = (data) => { const item = { ...data, id: newRecordId(), amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_settlements', { ...item, settlementDate: item.date || item.settlementDate, settlementType: item.type || 'Profit payment' }, showroomInfo.id); return persist(setSettlements, 'settlements', [item, ...settlements]); };
+  const addWithdrawal = (data) => { const item = { ...data, id: newRecordId(), amount: Number(data.amount || 0), status: 'Posted' }; void syncEntity('partner_settlements', { ...item, settlementDate: item.date || item.settlementDate, settlementType: 'Withdrawal' }, showroomInfo.id); return persist(setWithdrawals, 'withdrawals', [item, ...withdrawals]); };
+  const addOwnershipArrangement = (data) => { const item = { ...data, id: newRecordId() }; void syncEntity('partner_allocations', { ...item, allocationType: 'ownership' }, showroomInfo.id); return persist(setOwnershipHistory, 'ownership_history', [item, ...ownershipHistory]); };
+  const addProfitShareArrangement = (data) => { const item = { ...data, id: newRecordId() }; void syncEntity('partner_allocations', { ...item, allocationType: 'profit_sharing' }, showroomInfo.id); return persist(setProfitShareHistory, 'profit_share_history', [item, ...profitShareHistory]); };
 
   // Settings Actions
   const updateShowroomSettings = (fields) => {
     const updated = { ...showroomInfo, ...fields };
     setShowroomInfo(updated);
     saveLocal('showroom_info', updated);
+    if (showroomInfo.id) void syncShowroomProfile(showroomInfo.id, fields);
   };
 
   const updateUserProfile = (fields) => {
     const updated = { ...userProfile, ...fields };
     setUserProfile(updated);
     saveLocal('user_profile', updated);
+    void auth.updateProfile(fields);
   };
 
   // Super Admin Actions
@@ -635,70 +659,6 @@ export const AppProvider = ({ children }) => {
     });
     setAdminShowrooms(updated);
     saveLocal('admin_showrooms', updated);
-  };
-
-  // Reset all demo data to pristine state
-  const resetDemoData = () => {
-    setShowroomInfo(INITIAL_SHOWROOM_INFO);
-    setUserProfile(INITIAL_USER_PROFILE);
-    setSubscription(INITIAL_SUBSCRIPTION);
-    setPlans(PLANS_CONFIG);
-    setCustomers(INITIAL_CUSTOMERS);
-    setProducts(INITIAL_PRODUCTS);
-    setSuppliers(INITIAL_SUPPLIERS);
-    setSales(INITIAL_SALES);
-    setPurchases(INITIAL_PURCHASES);
-    setPartners(INITIAL_PARTNERS);
-    setExpenses(INITIAL_EXPENSES);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setAdminShowrooms(INITIAL_ADMIN_SHOWROOMS);
-    setAdminPayments(INITIAL_ADMIN_PAYMENTS);
-    setAdminLogs(INITIAL_ADMIN_LOGS);
-    setPlatformSettings(INITIAL_PLATFORM_SETTINGS);
-    setBookings(INITIAL_BOOKINGS);
-    setPartnerInvestments(INITIAL_PARTNER_INVESTMENTS);
-    setOwnershipHistory(INITIAL_OWNERSHIP_HISTORY);
-    setProfitShareHistory(INITIAL_PROFIT_SHARES);
-    setSettlements(INITIAL_SETTLEMENTS);
-    setWithdrawals(INITIAL_WITHDRAWALS);
-
-    const keys = [
-      'showroom_info', 'user_profile', 'subscription', 'plans', 'customers',
-      'products', 'suppliers', 'sales', 'purchases', 'partners', 'expenses',
-      'notifications', 'admin_showrooms', 'admin_payments', 'admin_logs', 'platform_settings', 'bookings', 'partner_investments', 'ownership_history', 'profit_share_history', 'settlements', 'withdrawals'
-    ];
-    keys.forEach(k => {
-      try { localStorage.removeItem(`showroom_pro_${k}`); } catch {}
-    });
-  };
-
-  // Load a separate Farhan/Crown sample showroom locally without syncing seed rows to Supabase.
-  const loadFarhanCrownDemo = () => {
-    const data = FARHAN_CROWN_DEMO_DATA;
-    const localData = [
-      ['showroom_info', setShowroomInfo, data.showroomInfo],
-      ['user_profile', setUserProfile, data.userProfile],
-      ['subscription', setSubscription, data.subscription],
-      ['plans', setPlans, data.plans],
-      ['customers', setCustomers, data.customers],
-      ['products', setProducts, data.products],
-      ['suppliers', setSuppliers, data.suppliers],
-      ['sales', setSales, data.sales],
-      ['purchases', setPurchases, data.purchases],
-      ['partners', setPartners, data.partners],
-      ['expenses', setExpenses, data.expenses],
-      ['notifications', setNotifications, data.notifications],
-      ['bookings', setBookings, data.bookings],
-      ['partner_investments', setPartnerInvestments, data.partnerInvestments],
-      ['ownership_history', setOwnershipHistory, data.ownershipHistory],
-      ['profit_share_history', setProfitShareHistory, data.profitShareHistory],
-      ['settlements', setSettlements, data.settlements],
-      ['withdrawals', setWithdrawals, data.withdrawals],
-    ];
-    localData.forEach(([key, setter, value]) => {
-      setter(value);
-      saveLocal(key, value);
-    });
   };
 
   // Currency helper tied to context
@@ -754,6 +714,7 @@ export const AppProvider = ({ children }) => {
     queueEmailNotification,
     closeMonthlyReport,
     fetchAdminMetrics,
+    fetchAdminShowrooms,
     // Methods
     addCustomer,
     updateCustomer,
@@ -789,8 +750,6 @@ export const AppProvider = ({ children }) => {
     updateShowroomSettings,
     updateUserProfile,
     toggleShowroomStatus,
-    resetDemoData,
-    loadFarhanCrownDemo,
     formatAmount,
     signIn,
     signUp,

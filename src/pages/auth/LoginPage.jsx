@@ -8,7 +8,6 @@ import {
   EyeOff,
   ArrowRight,
   ShieldAlert,
-  CheckCircle,
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useApp } from '../../context/AppContext';
@@ -23,32 +22,8 @@ export const LoginPage = () => {
   const [errors, setErrors] = useState({});
 
   const { toast } = useToast();
-  const { setCurrentRole, signIn, signOut, resetDemoData, loadFarhanCrownDemo, isSupabaseConfigured } = useApp();
+  const { setCurrentRole, signIn, isSupabaseConfigured } = useApp();
   const navigate = useNavigate();
-
-  const openShowroomDemo = async () => {
-    try {
-      await signOut();
-      resetDemoData();
-      setCurrentRole('showroom_owner');
-      toast.info('UrbanVolt sample records loaded on this device. No demo records were sent to Supabase.', 'EV Showroom Demo');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error(error.message || 'Unable to open the local showroom demo.', 'Demo unavailable');
-    }
-  };
-
-  const openFarhanCrownDemo = async () => {
-    try {
-      await signOut();
-      loadFarhanCrownDemo();
-      setCurrentRole('showroom_owner');
-      toast.info('Farhan Ali Crown sample records loaded on this device. No demo records were sent to Supabase.', 'Farhan Ali Crown Demo');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error(error.message || 'Unable to open the Farhan Ali Crown showroom demo.', 'Demo unavailable');
-    }
-  };
 
   const validate = () => {
     const errs = {};
@@ -78,7 +53,7 @@ export const LoginPage = () => {
         throw new Error('This account is not authorized for Super Admin access.');
       }
       setCurrentRole(isAdmin ? 'super_admin' : 'showroom_owner');
-      toast.success(isSupabaseConfigured ? 'Signed in securely.' : 'Signed in to the local demo session.', isAdmin ? 'Super Admin Authentication' : (isSupabaseConfigured ? 'Supabase Authentication' : 'Demo Authentication'));
+      toast.success('Signed in securely.', isAdmin ? 'Super Admin Authentication' : 'Supabase Authentication');
       navigate(isAdmin ? '/super-admin' : '/dashboard');
     } catch (error) {
       toast.error(error.message || 'Unable to sign in. Check your email and password.', 'Authentication failed');
@@ -102,21 +77,21 @@ export const LoginPage = () => {
         <p className="mt-1 text-xs text-slate-500">
           Or{' '}
           <Link to="/signup" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-            start your 14-day free trial
+            create your showroom account
           </Link>
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white dark:bg-slate-900 py-8 px-4 shadow-xl border border-slate-200 dark:border-slate-800 sm:rounded-2xl sm:px-10">
-          {/* Demo disclaimer banner */}
+          {/* Authentication status */}
           <div className="mb-6 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-xs text-blue-700 dark:text-blue-300">
             <div className="flex items-center gap-2 font-semibold mb-1">
               <ShieldAlert className="w-4 h-4 text-blue-600" />
-              <span>{isSupabaseConfigured ? 'Supabase Authentication' : 'Simulated Frontend Session'}</span>
+              <span>{isSupabaseConfigured ? 'Supabase Authentication' : 'Account sign-in unavailable'}</span>
             </div>
             <p className="text-[11px] leading-relaxed opacity-90">
-              {isSupabaseConfigured ? 'Use the email and password you created on the Sign up page. Your session is handled by Supabase Auth.' : 'Supabase credentials are not configured, so this screen uses a local demo session.'}
+              {isSupabaseConfigured ? 'Use the email and password registered for your showroom. Your session is handled by Supabase Auth.' : 'This app requires a live Supabase connection. Please contact the platform administrator while the service is configured.'}
             </p>
           </div>
 
@@ -190,7 +165,7 @@ export const LoginPage = () => {
               </label>
             </div>
 
-            <Button type="submit" variant="primary" size="lg" className="w-full">
+            <Button type="submit" variant="primary" size="lg" className="w-full" disabled={!isSupabaseConfigured}>
               Sign In to Showroom
             </Button>
           </form>
@@ -201,30 +176,6 @@ export const LoginPage = () => {
             </Link>
           </div>
 
-          {/* Quick Demo Logins */}
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block text-center mb-3">
-              Fast Demo Switcher
-            </span>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={openShowroomDemo}
-                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-left text-xs transition-colors"
-              >
-                <div className="font-semibold text-slate-800 dark:text-slate-200">Open EV Showroom Demo</div>
-                <div className="text-[10px] text-slate-400">UrbanVolt EV · sample records only</div>
-              </button>
-              <button
-                type="button"
-                onClick={openFarhanCrownDemo}
-                className="p-2 rounded-lg border border-orange-200 dark:border-orange-900 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-left text-xs transition-colors"
-              >
-                <div className="font-semibold text-slate-800 dark:text-slate-200">Open Farhan Ali Crown Demo</div>
-                <div className="text-[10px] text-slate-400">9 Crown EV models · sample showroom only</div>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

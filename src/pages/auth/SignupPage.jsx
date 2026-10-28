@@ -205,7 +205,7 @@ export const SignupPage = () => {
                     type="text"
                     value={formData.showroomName}
                     onChange={(e) => setFormData({ ...formData, showroomName: e.target.value })}
-                    placeholder="e.g. UrbanVolt EV Showroom"
+                    placeholder="e.g. My EV Bike Showroom"
                     className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   {errors.showroomName && <p className="text-[11px] text-rose-500 mt-1">{errors.showroomName}</p>}
@@ -307,13 +307,13 @@ export const SignupPage = () => {
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5"
                 />
                 <span className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  I accept the Showroom Pro Terms of Service, Privacy Policy, and understand that in this Phase 1 preview, actions operate on simulated frontend demo state.
+                  I accept the Showroom Pro Terms of Service and Privacy Policy. I understand that account and showroom records are stored in the connected database.
                 </span>
               </label>
               {errors.acceptTerms && <p className="text-[11px] text-rose-500 mt-1">{errors.acceptTerms}</p>}
             </div>
 
-            <Button type="submit" size="lg" variant="primary" className="w-full">
+            <Button type="submit" size="lg" variant="primary" className="w-full" disabled={!isSupabaseConfigured}>
               Complete Registration & Enter Showroom
             </Button>
           </form>

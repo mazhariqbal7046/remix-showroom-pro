@@ -339,7 +339,7 @@ export const PartnersPage = () => {
           </div>
 
           <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[11px] text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-            * In Phase 1 frontend preview, partners are stored in local demo state. Supabase Auth invitations with role-based access will be sent in Phase 2.
+            Partner details are stored in this showroom database. Partner login invitations are not configured yet.
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

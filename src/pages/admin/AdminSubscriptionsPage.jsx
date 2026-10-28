@@ -1,151 +1,35 @@
-import React, { useState, useMemo } from 'react';
-import {
-  CreditCard,
-  Search,
-  Filter,
-  CheckCircle,
-  AlertTriangle,
-  Clock,
-  Sparkles,
-  RefreshCw,
-  Download,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useToast } from '../../context/ToastContext';
 import { Button } from '../../components/common/Button';
-import { Badge, getStatusBadgeVariant } from '../../components/common/Badge';
 import { SearchFilterBar } from '../../components/common/SearchFilterBar';
 import { Pagination } from '../../components/common/Pagination';
-import { formatDate, exportToCSV } from '../../utils/formatters';
+import { exportToCSV, formatDate } from '../../utils/formatters';
 
 export const AdminSubscriptionsPage = () => {
-  const { adminShowrooms, formatAmount } = useApp();
-  const { toast } = useToast();
-
+  const { fetchAdminShowrooms, formatAmount } = useApp();
+  const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 6;
-
-  const filtered = useMemo(() => {
-    return adminShowrooms.filter((s) => {
-      const match = s.name.toLowerCase().includes(search.toLowerCase()) || s.planName.toLowerCase().includes(search.toLowerCase());
-      if (!match) return false;
-      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-      return true;
-    });
-  }, [adminShowrooms, search, statusFilter]);
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage]);
-
-  const handleExport = () => {
-    exportToCSV(
-      'superadmin-subscriptions-ledger',
-      filtered,
-      [
-        { key: 'name', label: 'Showroom' },
-        { key: 'planName', label: 'Plan' },
-        { key: 'activePartners', label: 'Active Partner Accounts' },
-        { key: 'mrr', label: 'Monthly Amount' },
-        { key: 'status', label: 'Status' },
-        { key: 'registeredDate', label: 'Start Date' },
-      ]
-    );
-    toast.info('Exported subscriptions ledger to CSV.', 'Export Complete');
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Tenant Subscriptions Control
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Monitor showroom subscriptions, renewals, partner accounts, and payment statuses.
-          </p>
-        </div>
-
-        <Button variant="secondary" size="md" onClick={handleExport}>
-          Export Subscriptions
-        </Button>
-      </div>
-
-      <SearchFilterBar
-        searchQuery={search}
-        onSearchChange={setSearch}
-        placeholder="Search by showroom or plan..."
-        filterOptions={[
-          { label: 'All Statuses', value: 'all' },
-          { label: 'Active', value: 'Active' },
-          { label: 'Trial', value: 'Trial' },
-          { label: 'Expiring Soon', value: 'Expiring Soon' },
-          { label: 'Suspended', value: 'Suspended' },
-        ]}
-        selectedFilter={statusFilter}
-        onFilterChange={setStatusFilter}
-        onExport={handleExport}
-        exportLabel="Export CSV"
-      />
-
-      <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
-              <tr>
-                <th className="py-3.5 px-6 font-semibold">Tenant Showroom</th>
-                <th className="py-3.5 px-6 font-semibold">Plan</th>
-                <th className="py-3.5 px-6 font-semibold">Partner Accounts</th>
-                <th className="py-3.5 px-6 font-semibold">Billing Interval</th>
-                <th className="py-3.5 px-6 font-semibold">Monthly MRR</th>
-                <th className="py-3.5 px-6 font-semibold">Licensing Status</th>
-                <th className="py-3.5 px-6 font-semibold">Renewal Horizon</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-900">
-              {paginated.map((sub) => (
-                <tr key={sub.id} className="hover:bg-slate-900/60 transition-colors">
-                  <td className="py-4 px-6 font-bold text-white">
-                    {sub.name}
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-semibold text-indigo-400">
-                      {sub.planName}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-slate-300">
-                    {sub.activePartners} active · Unlimited included
-                  </td>
-                  <td className="py-4 px-6 text-slate-400">
-                    Monthly Renewal
-                  </td>
-                  <td className="py-4 px-6 font-bold text-emerald-400">
-                    {formatAmount(sub.mrr)}
-                  </td>
-                  <td className="py-4 px-6">
-                    <Badge variant={getStatusBadgeVariant(sub.status)} size="sm">
-                      {sub.status}
-                    </Badge>
-                  </td>
-                  <td className="py-4 px-6 text-slate-400">
-                    Nov 01, 2026 (Simulated)
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <Pagination
-          currentPage={currentPage}
-          totalItems={filtered.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-        />
-      </div>
-    </div>
-  );
+  const [status, setStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const refresh = async () => { setLoading(true); const result = await fetchAdminShowrooms(); setRows(result.data?.showrooms || []); setError(result.error?.message || ''); setLoading(false); };
+  useEffect(() => { void refresh(); }, []);
+  const filtered = useMemo(() => rows.filter((row) => {
+    const query = search.trim().toLowerCase();
+    const matches = [row.name, row.email, row.subscription?.plan_id].some((value) => String(value || '').toLowerCase().includes(query));
+    return matches && (status === 'all' || (row.subscription?.status || 'none') === status);
+  }), [rows, search, status]);
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const exportRows = () => exportToCSV('subscription-records', filtered.map((row) => ({ name: row.name, email: row.email, plan: row.subscription?.plan_id || '', status: row.subscription?.status || 'none', monthly_amount: row.subscription?.monthly_amount || 0, started_at: row.subscription?.started_at || '' })), [
+    { key: 'name', label: 'Showroom' }, { key: 'email', label: 'Email' }, { key: 'plan', label: 'Plan' }, { key: 'status', label: 'Status' }, { key: 'monthly_amount', label: 'Monthly amount' }, { key: 'started_at', label: 'Started at' },
+  ]);
+  return <div className="space-y-6">
+    <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4"><div><h1 className="text-2xl font-bold text-slate-900">Subscription Records</h1><p className="mt-1 text-sm text-slate-500">Current database subscription status. Payment collection is not connected.</p></div><div className="flex gap-2"><Button variant="secondary" icon={Download} onClick={exportRows}>Export CSV</Button><Button variant="secondary" icon={RefreshCw} onClick={refresh} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</Button></div></div>
+    {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><AlertCircle size={18} className="mt-0.5 shrink-0" />{error}</div>}
+    <SearchFilterBar searchQuery={search} onSearchChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search showroom, email, or plan..." filterOptions={[{ label: 'All statuses', value: 'all' }, { label: 'Trial', value: 'trial' }, { label: 'Active', value: 'active' }, { label: 'Past due', value: 'past_due' }, { label: 'Cancelled', value: 'cancelled' }, { label: 'No subscription', value: 'none' }]} selectedFilter={status} onFilterChange={(value) => { setStatus(value); setPage(1); }} onExport={exportRows} exportLabel="Export CSV" />
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Showroom','Plan','Status','Monthly amount','Start date','Next billing date'].map((label) => <th key={label} className="px-4 py-3 font-semibold">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{pageRows.map((row) => <tr key={row.id}><td className="px-4 py-4 font-semibold text-slate-900">{row.name}<div className="text-xs font-normal text-slate-400">{row.email || ''}</div></td><td className="px-4 py-4 text-slate-600">{row.subscription?.plan_id || '—'}</td><td className="px-4 py-4 capitalize text-slate-600">{row.subscription?.status || 'No subscription'}</td><td className="px-4 py-4 text-slate-700">{row.subscription ? formatAmount(row.subscription.monthly_amount) : '—'}</td><td className="px-4 py-4 text-slate-500">{row.subscription?.started_at ? formatDate(row.subscription.started_at) : '—'}</td><td className="px-4 py-4 text-slate-500">{row.subscription?.next_billing_date ? formatDate(row.subscription.next_billing_date) : 'Not scheduled'}</td></tr>)}{!loading && pageRows.length === 0 && <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">{error ? 'Subscription records could not be loaded.' : 'No subscription records found.'}</td></tr>}</tbody></table></div><Pagination currentPage={page} totalItems={filtered.length} pageSize={pageSize} onPageChange={setPage}/></div>
+  </div>;
 };

@@ -54,7 +54,7 @@ export const ProfilePage = () => {
             />
             <button
               type="button"
-              onClick={() => toast.info('Photo upload simulated in demo mode.', 'Avatar')}
+              onClick={() => toast.info('Profile photo upload is not configured yet.', 'Avatar')}
               className="absolute bottom-0 right-0 p-1.5 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700"
               title="Change photo"
             >
