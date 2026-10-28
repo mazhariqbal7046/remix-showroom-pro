@@ -89,7 +89,7 @@ const mapRows = (table, rows, payments = []) => {
   if (table === 'partner_capital_entries') return rows.map((r) => ({ ...r, partnerId: r.partner_id, entryDate: r.entry_date, entryType: r.entry_type }));
   if (table === 'partner_allocations') return rows.map((r) => ({ ...r, allocationType: r.allocation_type, effectiveDate: r.effective_date }));
   if (table === 'partner_settlements') return rows.map((r) => ({ ...r, partnerId: r.partner_id, settlementDate: r.settlement_date, type: r.settlement_type }));
-  if (table === 'quotations') return rows.map((r) => ({ ...r, customerId: r.customer_id, quoteNumber: r.quote_number, issueDate: r.issue_date, validUntil: r.valid_until, ownerSignature: r.owner_signature, ownerStamp: r.owner_stamp, items: payments.filter((item) => item.quotation_id === r.id) }));
+  if (table === 'quotations') return rows.map((r) => ({ ...r, customerId: r.customer_id, customerName: r.customer_name, customerPhone: r.customer_phone, quoteNumber: r.quote_number, issueDate: r.issue_date, validUntil: r.valid_until, ownerSignature: r.owner_signature, ownerStamp: r.owner_stamp, items: payments.filter((item) => item.quotation_id === r.id) }));
   return rows;
 };
 
@@ -182,7 +182,7 @@ export const syncBookingPayment = async (bookingId, payment) => {
 
 export const syncQuotation = async ({ showroomId, quotation, item }) => {
   if (!supabase || !showroomId) return { data: null, error: null };
-  const quotePayload = { showroom_id: showroomId, ...(quotation.id && isUuid(quotation.id) ? { id: quotation.id } : {}), customer_id: isUuid(quotation.customerId) ? quotation.customerId : null, quote_number: quotation.quoteNumber, issue_date: quotation.issueDate, valid_until: quotation.validUntil || null, status: quotation.status || 'Draft', subtotal: Number(quotation.subtotal || quotation.total || 0), total: Number(quotation.total || 0), notes: quotation.notes || null, owner_signature: quotation.ownerSignature || null, owner_stamp: quotation.ownerStamp || null };
+  const quotePayload = { showroom_id: showroomId, ...(quotation.id && isUuid(quotation.id) ? { id: quotation.id } : {}), customer_id: isUuid(quotation.customerId) ? quotation.customerId : null, customer_name: quotation.customerName?.trim() || null, customer_phone: quotation.customerPhone?.trim() || null, quote_number: quotation.quoteNumber, issue_date: quotation.issueDate, valid_until: quotation.validUntil || null, status: quotation.status || 'Draft', subtotal: Number(quotation.subtotal || quotation.total || 0), total: Number(quotation.total || 0), notes: quotation.notes || null, owner_signature: quotation.ownerSignature || null, owner_stamp: quotation.ownerStamp || null };
   const quote = await monitorWrite(supabase.from('quotations').upsert(quotePayload).select().single(), 'Save quotation');
   if (quote.error || !item) return quote;
   const itemPayload = { quotation_id: quote.data.id, inventory_id: isUuid(item.productId) ? item.productId : null, product_name: item.productName, brand: item.brand || null, model: item.model || null, color: item.color || null, motor_power: item.motorPower || null, battery_type: item.batteryType || null, battery_capacity: item.batteryCapacity || null, quantity: 1, unit_price: Number(item.unitPrice || 0) };

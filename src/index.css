@@ -197,23 +197,55 @@ html[data-color-palette] {
 
 /* Print styles for invoices */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    min-height: 0 !important;
+    background: #fff !important;
+  }
+
   body * {
-    visibility: hidden;
+    visibility: hidden !important;
   }
-  #printable-invoice, #printable-invoice * {
-    visibility: visible;
+
+  #printable-invoice,
+  #printable-invoice *,
+  #quotation-print,
+  #quotation-print * {
+    visibility: visible !important;
   }
-  #printable-invoice {
+
+  #printable-invoice,
+  #quotation-print {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
     background: white !important;
     color: black !important;
+    box-shadow: none !important;
+    overflow: visible !important;
   }
-  .no-print {
+
+  #printable-invoice {
+    padding: 20px !important;
+  }
+
+  #quotation-print {
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .no-print,
+  .print\:hidden {
     display: none !important;
   }
 }
