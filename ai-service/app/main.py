@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import os
 import secrets
 from datetime import date, datetime, timedelta, timezone
@@ -15,6 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 load_dotenv()
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class AskRequest(BaseModel):
@@ -241,13 +244,21 @@ async def process_email_queue() -> int:
     return sent
 
 
+worker_last_cycle_at: str | None = None
+
+
 async def notification_worker() -> None:
+    global worker_last_cycle_at
     while True:
         try:
             await run_scheduled_email_jobs()
             await process_email_queue()
+        except asyncio.CancelledError:
+            raise
         except Exception:
-            pass
+            logger.exception("Notification worker cycle failed")
+        finally:
+            worker_last_cycle_at = datetime.now(timezone.utc).isoformat()
         await asyncio.sleep(60)
 
 
@@ -325,13 +336,16 @@ async def scheduled_email(showroom_id: str, destination: str, event_type: str, s
 
 
 async def begin_scheduled_run(showroom_id: str, job_type: str, business_date: date) -> str | None:
-    filters = {"showroom_id": f"eq.{showroom_id}", "job_type": f"eq.{job_type}", "business_date": f"eq.{business_date.isoformat()}", "select": "id,status", "limit": "1"}
+    filters = {"showroom_id": f"eq.{showroom_id}", "job_type": f"eq.{job_type}", "business_date": f"eq.{business_date.isoformat()}", "select": "id,status,created_at", "limit": "1"}
     rows = await supabase_rows("scheduled_notification_runs", filters)
     if rows:
-        if rows[0].get("status") != "failed":
+        existing = rows[0]
+        created_at = datetime.fromisoformat(existing["created_at"].replace("Z", "+00:00"))
+        stale_processing = existing.get("status") == "processing" and datetime.now(timezone.utc) - created_at > timedelta(minutes=15)
+        if existing.get("status") != "failed" and not stale_processing:
             return None
-        await supabase_write("scheduled_notification_runs", {"status": "processing", "error_message": None}, {"id": f"eq.{rows[0]['id']}"}, "PATCH")
-        return rows[0]["id"]
+        await supabase_write("scheduled_notification_runs", {"status": "processing", "error_message": None, "completed_at": None}, {"id": f"eq.{existing['id']}"}, "PATCH")
+        return existing["id"]
     row = await supabase_write("scheduled_notification_runs", {"showroom_id": showroom_id, "job_type": job_type, "business_date": business_date.isoformat(), "status": "processing"})
     return row.get("id")
 
@@ -347,15 +361,25 @@ async def finish_scheduled_run(run_id: str, error: Exception | None = None) -> N
 async def run_scheduled_email_jobs() -> None:
     now = datetime.now(ZoneInfo("Asia/Karachi"))
     today = now.date()
-    last_day_of_month = (today + timedelta(days=1)).month != today.month
-    first_day_of_month = today.day == 1
     jobs: list[tuple[str, date]] = []
-    if now.hour == 20:
-        jobs.append(("daily_showroom_report", today))
-    if now.hour == 18 and last_day_of_month:
-        jobs.append(("monthly_closing_reminder", today))
-    if now.hour == 9 and first_day_of_month:
-        jobs.append(("partner_monthly_profit", today))
+    # Render Free services can sleep. On wake, catch up recent daily reports and
+    # this month's partner statement instead of requiring an exact-hour tick.
+    for days_ago in range(7, -1, -1):
+        report_date = today - timedelta(days=days_ago)
+        if report_date < today or now.hour >= 20:
+            jobs.append(("daily_showroom_report", report_date))
+
+    current_month_end = today.replace(day=28) + timedelta(days=4)
+    current_month_end -= timedelta(days=current_month_end.day)
+    if today == current_month_end and now.hour >= 18:
+        jobs.append(("monthly_closing_reminder", current_month_end))
+    elif today.day <= 7:
+        previous_month_end = today.replace(day=1) - timedelta(days=1)
+        jobs.append(("monthly_closing_reminder", previous_month_end))
+
+    month_anchor = today.replace(day=1)
+    if today.day > 1 or now.hour >= 9:
+        jobs.append(("partner_monthly_profit", month_anchor))
     if not jobs:
         return
     showrooms = await supabase_rows("showrooms", {"select": "id,name,email", "order": "created_at.asc"})
@@ -368,18 +392,18 @@ async def run_scheduled_email_jobs() -> None:
                 continue
             try:
                 if job_type == "daily_showroom_report":
-                    summary = await snapshot(showroom["id"], today, today + timedelta(days=1))
-                    body = (f"Daily showroom report for {today.isoformat()} — {showroom.get('name') or 'Showroom'}\n"
+                    summary = await snapshot(showroom["id"], business_date, business_date + timedelta(days=1))
+                    body = (f"Daily showroom report for {business_date.isoformat()} — {showroom.get('name') or 'Showroom'}\n"
                             f"Revenue: PKR {summary['revenue']:,.0f}\nCOGS: PKR {summary['cogs']:,.0f}\n"
                             f"Gross profit: PKR {summary['gross_profit']:,.0f}\nExpenses: PKR {summary['expenses']:,.0f}\n"
                             f"Net profit: PKR {summary['net_profit']:,.0f}\nActive bookings: {summary['active_bookings']}\n"
                             f"Current stock units: {summary['inventory_units']}")
-                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Daily showroom report — {today.isoformat()}", body, f"{job_type}:{showroom['id']}:{today.isoformat()}")
+                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Daily showroom report — {business_date.isoformat()}", body, f"{job_type}:{showroom['id']}:{business_date.isoformat()}")
                 elif job_type == "monthly_closing_reminder":
-                    body = (f"Today is the final day of {today.strftime('%B %Y')}. Please review today's sales, delivered bookings, COGS, expenses, and stock, then use Close Month in Showroom Pro Business Reports.")
-                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Monthly closing reminder — {today.strftime('%B %Y')}", body, f"{job_type}:{showroom['id']}:{today.isoformat()}")
+                    body = (f"Month closing for {business_date.strftime('%B %Y')} is due. Please review that month's sales, delivered bookings, COGS, expenses, and stock, then use Close Month in Showroom Pro Business Reports.")
+                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Monthly closing reminder — {business_date.strftime('%B %Y')}", body, f"{job_type}:{showroom['id']}:{business_date.isoformat()}")
                 else:
-                    month_end = today.replace(day=1)
+                    month_end = business_date
                     previous_day = month_end - timedelta(days=1)
                     month_start = previous_day.replace(day=1)
                     summary = await snapshot(showroom["id"], month_start, month_end)
@@ -400,6 +424,7 @@ async def run_scheduled_email_jobs() -> None:
                         await scheduled_email(showroom["id"], partner["email"], job_type, f"Partner profit statement — {month_start.strftime('%B %Y')}", body, f"{job_type}:{showroom['id']}:{partner['id']}:{month_start.isoformat()}", "partner", partner["id"])
                 await finish_scheduled_run(run_id)
             except Exception as error:
+                logger.exception("Scheduled email job failed: %s showroom=%s date=%s", job_type, showroom["id"], business_date.isoformat())
                 await finish_scheduled_run(run_id, error)
 
 
@@ -429,7 +454,7 @@ async def model_answer(question: str, data: dict[str, Any]) -> str | None:
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "service": "showroom-pro-ai", "supabase_configured": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY), "ai_configured": bool(os.getenv("AI_API_KEY")), "email_configured": bool(RESEND_API_KEY), "email_worker_enabled": NOTIFICATION_WORKER_ENABLED}
+    return {"ok": True, "service": "showroom-pro-ai", "supabase_configured": bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY), "ai_configured": bool(os.getenv("AI_API_KEY")), "email_configured": bool(RESEND_API_KEY), "email_worker_enabled": NOTIFICATION_WORKER_ENABLED, "email_worker_running": bool(worker_task and not worker_task.done()), "email_worker_last_cycle_at": worker_last_cycle_at}
 
 
 @app.get("/")
