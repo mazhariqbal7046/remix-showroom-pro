@@ -37,6 +37,18 @@ html[data-color-palette="soft-pastel"] {
   --color-slate-950: #101C1A;
 }
 
+html[data-color-palette="soft-pastel"] .soft-pastel-primary {
+  background-color: #91DDCF;
+  border-color: #91DDCF;
+  color: #293A37;
+  box-shadow: 0 2px 8px rgb(145 221 207 / 20%);
+}
+
+html[data-color-palette="soft-pastel"] .soft-pastel-primary:hover:not(:disabled) {
+  background-color: #A7E5DA;
+  border-color: #A7E5DA;
+}
+
 html[data-color-palette="salesport"] {
   --color-blue-50: #eff5ff;
   --color-blue-100: #dce8ff;

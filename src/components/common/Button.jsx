@@ -29,12 +29,14 @@ export const Button = ({
     lg: 'text-base px-5 py-2.5 gap-2.5',
   };
 
+  const paletteStyles = variant === 'primary' ? 'soft-pastel-primary' : '';
+
   return (
     <button
       type={type}
       disabled={disabled}
       onClick={onClick}
-      className={`${baseStyles} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`}
+      className={`${baseStyles} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${paletteStyles} ${className}`}
       {...props}
     >
       {Icon && iconPosition === 'left' && <Icon className="w-4 h-4 shrink-0" />}
