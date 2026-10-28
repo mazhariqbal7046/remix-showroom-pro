@@ -50,6 +50,7 @@ export const ShowroomLayout = () => {
     authUser,
     authLoading,
     isSupabaseConfigured,
+    currentRole,
     signOut,
     formatAmount,
   } = useApp();
@@ -99,6 +100,7 @@ export const ShowroomLayout = () => {
     },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
+  if (currentRole === 'partner') navItems.splice(0, navItems.length, { name: 'My Partner Portal', path: '/partner-portal', icon: HandCoins });
 
   const handleLogout = async () => {
     await signOut();
@@ -108,6 +110,8 @@ export const ShowroomLayout = () => {
 
   if (authLoading) return <div className="min-h-screen grid place-items-center bg-white text-slate-600">Loading showroom…</div>;
   if (!isSupabaseConfigured || !authUser) return <Navigate to="/login" replace />;
+  if (currentRole === 'partner' && location.pathname !== '/partner-portal') return <Navigate to="/partner-portal" replace />;
+  if (currentRole !== 'partner' && location.pathname === '/partner-portal') return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="min-h-screen flex bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased">

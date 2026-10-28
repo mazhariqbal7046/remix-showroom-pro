@@ -113,19 +113,31 @@ export const AppProvider = ({ children }) => {
       if (!active) return;
       const user = data?.session?.user || null;
       setAuthUser(user);
-      setAuthLoading(false);
       if (user && isSupabaseConfigured) await hydrateSupabase(user, data?.session?.access_token);
+      if (active) setAuthLoading(false);
     });
-    const { data: listener } = auth.onAuthStateChange(async (_event, session) => { const user = session?.user || null; setAuthUser(user); if (user && isSupabaseConfigured) await hydrateSupabase(user, session?.access_token); });
+    const { data: listener } = auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user || null;
+      setAuthUser(user);
+      if (user && isSupabaseConfigured) {
+        setAuthLoading(true);
+        await hydrateSupabase(user, session?.access_token);
+      }
+      setAuthLoading(false);
+    });
     return () => { active = false; listener?.subscription?.unsubscribe?.(); };
   }, []);
 
   const hydrateSupabase = async (user, accessToken) => {
     const pending = loadLocal('pending_onboarding', {});
-    const showroomResult = await ensureShowroom({ user, metadata: pending });
-    if (showroomResult.error || !showroomResult.data) return;
+    const isSuperAdmin = user.app_metadata?.role === 'super_admin';
+    if (isSuperAdmin) setCurrentRole('super_admin');
+    const showroomResult = await ensureShowroom({ user, metadata: pending, allowCreate: !isSuperAdmin && window.location.pathname !== '/partner-invite' });
+    if (showroomResult.error || !showroomResult.data) return null;
     const showroom = showroomResult.data;
-    if (accessToken && user.app_metadata?.role !== 'super_admin') {
+    const role = showroomResult.role || 'owner';
+    setCurrentRole(role);
+    if (accessToken && role !== 'partner' && user.app_metadata?.role !== 'super_admin') {
       const apiBase = (import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001').replace(/\/$/, '');
       try {
         const billingResponse = await fetch(`${apiBase}/api/billing/ensure-trial`, {
@@ -141,9 +153,9 @@ export const AppProvider = ({ children }) => {
       }
     }
     setShowroomInfo((current) => ({ ...current, ...showroom, id: showroom.id, name: showroom.name, category: showroom.category || current.category, address: showroom.address || current.address, currency: showroom.currency || current.currency }));
-    setUserProfile({ fullName: user.user_metadata?.fullName || user.user_metadata?.full_name || '', email: user.email || '', phone: showroom.phone || user.user_metadata?.phone || '', role: user.app_metadata?.role === 'super_admin' ? 'Super Admin' : 'Owner', avatar: '' });
+    setUserProfile({ fullName: user.user_metadata?.fullName || user.user_metadata?.full_name || '', email: user.email || '', phone: showroom.phone || user.user_metadata?.phone || '', role: role === 'partner' ? 'Partner' : user.app_metadata?.role === 'super_admin' ? 'Super Admin' : 'Owner', avatar: '' });
     const loaded = await loadShowroomData(showroom.id);
-    if (loaded.error || !loaded.data) return;
+    if (loaded.error || !loaded.data) return role;
     const remote = loaded.data;
     setCustomers(remote.customers); setProducts(remote.products); setBookings(remote.bookings); setSales(remote.sales); setExpenses(remote.expenses); setPartners(remote.partners); setPartnerInvestments(remote.partnerInvestments); setOwnershipHistory(remote.ownershipHistory); setProfitShareHistory(remote.profitShareHistory); setSettlements(remote.settlements); setWithdrawals(remote.withdrawals); setSuppliers(remote.suppliers || []); setPurchases(remote.purchases || []);
     if (remote.subscription) setSubscription({ ...INITIAL_SUBSCRIPTION, ...remote.subscription, status: remote.subscription.status === 'trial' ? 'Trial' : remote.subscription.status });
@@ -157,6 +169,7 @@ export const AppProvider = ({ children }) => {
         'showroom_pro_pending_onboarding',
       ].forEach((key) => localStorage.removeItem(key));
     } catch {}
+    return role;
   };
 
   // Local storage is intentionally not used for business records. Supabase is
@@ -168,12 +181,13 @@ export const AppProvider = ({ children }) => {
     if (!isSupabaseConfigured) throw new Error('Showroom Pro is not connected to Supabase yet. Configure the Supabase URL and publishable key before signing in.');
     const result = await auth.signIn(email, password);
     if (result.error) throw result.error;
-    return result;
+    const role = result.data?.user && result.data?.session ? await hydrateSupabase(result.data.user, result.data.session.access_token) : null;
+    return { ...result, role };
   };
-  const signUp = async ({ email, password, metadata }) => {
+  const signUp = async ({ email, password, metadata, redirectTo }) => {
     if (!isSupabaseConfigured) throw new Error('Showroom Pro is not connected to Supabase yet. Configure the Supabase URL and publishable key before creating an account.');
     try { localStorage.setItem('showroom_pro_pending_onboarding', JSON.stringify(metadata || {})); } catch {}
-    const result = await auth.signUp({ email, password, metadata });
+    const result = await auth.signUp({ email, password, metadata, redirectTo });
     if (result.error) throw result.error;
     if (result.data?.user && result.data?.session) await hydrateSupabase(result.data.user, result.data.session.access_token);
     return result;
@@ -216,6 +230,23 @@ export const AppProvider = ({ children }) => {
   const reviewSubscriptionPayment = (id, body) => adminRequest(`/api/admin/subscription-payments/${id}/review`, { method: 'POST', body });
   const fetchBillingSubscription = () => apiRequest('/api/billing/subscription', { showroom: true });
   const submitSubscriptionPayment = (body) => apiRequest('/api/billing/subscription-payments', { method: 'POST', body, showroom: true });
+  const invitePartnerLogin = (partnerId) => apiRequest('/api/partners/invitations', { method: 'POST', body: { partner_id: partnerId }, showroom: true });
+  const fetchPartnerInvitation = async (token) => {
+    const base = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+    try {
+      const response = await fetch(`${base}/api/partners/invitations/${encodeURIComponent(token)}`);
+      const data = await response.json().catch(() => ({}));
+      return response.ok ? { data, error: null } : { data: null, error: new Error(data.detail || 'This partner invitation is invalid or expired.') };
+    } catch (error) { return { data: null, error }; }
+  };
+  const acceptPartnerInvitation = async (token) => {
+    const result = await apiRequest('/api/partners/accept-invitation', { method: 'POST', body: { token } });
+    if (result.error) return result;
+    const session = (await auth.getSession()).data?.session;
+    if (session?.user) await hydrateSupabase(session.user, session.access_token);
+    return result;
+  };
+  const fetchPartnerSummary = () => apiRequest('/api/partners/me');
 
   const notifyLowStockTransition = (before, after, includeInitial = false) => {
     if (!showroomInfo.email || !after) return;
@@ -794,6 +825,10 @@ export const AppProvider = ({ children }) => {
     reviewSubscriptionPayment,
     fetchBillingSubscription,
     submitSubscriptionPayment,
+    invitePartnerLogin,
+    fetchPartnerInvitation,
+    acceptPartnerInvitation,
+    fetchPartnerSummary,
     // Methods
     addCustomer,
     updateCustomer,

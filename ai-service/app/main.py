@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -36,6 +38,14 @@ class MonthlyClosingRequest(BaseModel):
 class BankTransferRequest(BaseModel):
     transfer_reference: str = Field(min_length=3, max_length=120)
     transfer_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class PartnerInvitationRequest(BaseModel):
+    partner_id: str = Field(min_length=36, max_length=36)
+
+
+class PartnerInvitationAcceptRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=200)
 
 
 class PlatformPaymentSettingsRequest(BaseModel):
@@ -121,12 +131,30 @@ async def showroom_owner(showroom_id: str, user_id: str) -> bool:
     return any(str(row.get("role", "")).lower() in {"owner", "admin"} for row in rows)
 
 
+async def showroom_operator(showroom_id: str, user_id: str) -> bool:
+    rows = await supabase_rows("showroom_members", {"showroom_id": f"eq.{showroom_id}", "user_id": f"eq.{user_id}", "select": "role"})
+    return any(str(row.get("role", "")).lower() in {"owner", "admin", "manager", "salesperson", "accountant"} for row in rows)
+
+
 async def authenticated_user(authorization: str | None) -> str:
     token = (authorization or "").removeprefix("Bearer ").strip()
     user_id = await verify_user(token)
     if not user_id:
         raise HTTPException(401, "Please sign in again.")
     return user_id
+
+
+async def authenticated_user_details(authorization: str | None) -> dict[str, Any]:
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    user_id = await verify_user(token)
+    if not user_id:
+        raise HTTPException(401, "Please sign in again.")
+    headers = {"apikey": SUPABASE_ANON_KEY or SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        response = await client.get(f"{SUPABASE_URL}/auth/v1/user", headers=headers)
+    if not response.is_success:
+        raise HTTPException(401, "Please sign in again.")
+    return response.json()
 
 
 async def require_admin(authorization: str | None) -> str:
@@ -415,10 +443,101 @@ async def queue_notification(request: NotificationRequest, authorization: str | 
         raise HTTPException(400, "x-showroom-id is required.")
     token = (authorization or "").removeprefix("Bearer ").strip()
     user_id = await verify_user(token)
-    if not user_id or not await allowed(x_showroom_id, user_id):
+    if not user_id or not await showroom_operator(x_showroom_id, user_id):
         raise HTTPException(403, "Showroom access denied.")
     row = await supabase_write("notification_deliveries", {"showroom_id": x_showroom_id, "recipient_type": request.recipient_type, "recipient_id": request.recipient_id, "channel": "email", "event_type": request.event_type, "destination": request.destination, "payload": {"subject": request.subject, "body": request.body}})
     return {"queued": True, "notification": row}
+
+
+def partner_invite_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@app.post("/api/partners/invitations")
+async def create_partner_invitation(request: PartnerInvitationRequest, authorization: str | None = Header(default=None), x_showroom_id: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await authenticated_user(authorization)
+    if not x_showroom_id or not await showroom_owner(x_showroom_id, user_id):
+        raise HTTPException(403, "Only the showroom owner can invite a partner login.")
+    partners = await supabase_rows("partners", {"id": f"eq.{request.partner_id}", "showroom_id": f"eq.{x_showroom_id}", "select": "id,full_name,email,status", "limit": "1"})
+    if not partners:
+        raise HTTPException(404, "Partner record was not found.")
+    partner = partners[0]
+    if not partner.get("email"):
+        raise HTTPException(400, "Add this partner's email address before sending a login invitation.")
+    if str(partner.get("status", "Active")).lower() != "active":
+        raise HTTPException(409, "Only active partners can be invited to sign in.")
+    members = await supabase_rows("showroom_members", {"showroom_id": f"eq.{x_showroom_id}", "partner_id": f"eq.{request.partner_id}", "select": "user_id", "limit": "1"})
+    if members:
+        raise HTTPException(409, "This partner already has a linked login.")
+    existing = await supabase_rows("partner_invitations", {"showroom_id": f"eq.{x_showroom_id}", "partner_id": f"eq.{request.partner_id}", "status": "eq.pending", "expires_at": f"gt.{datetime.now(timezone.utc).isoformat()}", "select": "id", "limit": "1"})
+    if existing:
+        await supabase_write("partner_invitations", {"status": "revoked"}, {"id": f"eq.{existing[0]['id']}", "status": "eq.pending"}, "PATCH")
+    raw_token = secrets.token_urlsafe(40)
+    expiry = datetime.now(timezone.utc) + timedelta(days=7)
+    invitation = await supabase_write("partner_invitations", {"showroom_id": x_showroom_id, "partner_id": request.partner_id, "invite_email": partner["email"].strip().lower(), "token_hash": partner_invite_hash(raw_token), "expires_at": expiry.isoformat(), "created_by": user_id})
+    showroom = await supabase_rows("showrooms", {"id": f"eq.{x_showroom_id}", "select": "name", "limit": "1"})
+    invite_url = f"{CLIENT_ORIGIN.rstrip('/')}/partner-invite?token={raw_token}"
+    body = (f"You have been invited to the {showroom[0].get('name') if showroom else 'showroom'} partner portal. "
+            f"Use this secure link within 7 days: {invite_url}\n\n"
+            f"Sign in or create a Showroom Pro account using {partner['email']}. The link only grants read-only access to your own partner record, investment history and settlements.")
+    await supabase_write("notification_deliveries", {"showroom_id": x_showroom_id, "recipient_type": "partner", "recipient_id": request.partner_id, "channel": "email", "event_type": "partner_invitation", "destination": partner["email"], "payload": {"subject": "Showroom Pro partner portal invitation", "body": body}})
+    return {"queued": True, "invitation_id": invitation.get("id"), "expires_at": expiry.isoformat()}
+
+
+@app.get("/api/partners/invitations/{token}")
+async def get_partner_invitation(token: str) -> dict[str, Any]:
+    if len(token) < 32 or len(token) > 200:
+        raise HTTPException(404, "This partner invitation is invalid or expired.")
+    rows = await supabase_rows("partner_invitations", {"token_hash": f"eq.{partner_invite_hash(token)}", "status": "eq.pending", "select": "showroom_id,partner_id,invite_email,expires_at", "limit": "1"})
+    if not rows or datetime.fromisoformat(rows[0]["expires_at"].replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+        raise HTTPException(410, "This partner invitation is invalid or expired.")
+    partner, showroom = await asyncio.gather(
+        supabase_rows("partners", {"id": f"eq.{rows[0]['partner_id']}", "showroom_id": f"eq.{rows[0]['showroom_id']}", "select": "full_name", "limit": "1"}),
+        supabase_rows("showrooms", {"id": f"eq.{rows[0]['showroom_id']}", "select": "name", "limit": "1"}),
+    )
+    return {"email": rows[0]["invite_email"], "partner_name": partner[0].get("full_name") if partner else "Partner", "showroom_name": showroom[0].get("name") if showroom else "Showroom", "expires_at": rows[0]["expires_at"]}
+
+
+@app.post("/api/partners/accept-invitation")
+async def accept_partner_invitation(request: PartnerInvitationAcceptRequest, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    user = await authenticated_user_details(authorization)
+    if not user.get("email_confirmed_at"):
+        raise HTTPException(403, "Confirm your email address before accepting this partner invitation.")
+    rows = await supabase_rows("partner_invitations", {"token_hash": f"eq.{partner_invite_hash(request.token)}", "status": "eq.pending", "select": "id,showroom_id,partner_id,invite_email,expires_at", "limit": "1"})
+    if not rows:
+        raise HTTPException(404, "This invitation has already been used or is no longer valid.")
+    invitation = rows[0]
+    if str(user.get("email", "")).strip().lower() != invitation["invite_email"].strip().lower():
+        raise HTTPException(403, "Sign in with the email address that received this invitation.")
+    expires_at = datetime.fromisoformat(invitation["expires_at"].replace("Z", "+00:00"))
+    if expires_at <= datetime.now(timezone.utc):
+        await supabase_write("partner_invitations", {"status": "expired"}, {"id": f"eq.{invitation['id']}"}, "PATCH")
+        raise HTTPException(410, "This invitation has expired. Ask the showroom owner to resend it.")
+    current = await supabase_rows("showroom_members", {"showroom_id": f"eq.{invitation['showroom_id']}", "user_id": f"eq.{user['id']}", "select": "role,partner_id", "limit": "1"})
+    if current and (current[0].get("role") != "partner" or current[0].get("partner_id") != invitation["partner_id"]):
+        raise HTTPException(409, "This account already has a different role in this showroom.")
+    if not current:
+        await supabase_write("showroom_members", {"showroom_id": invitation["showroom_id"], "user_id": user["id"], "partner_id": invitation["partner_id"], "role": "partner"})
+    await supabase_write("partner_invitations", {"status": "accepted", "accepted_by": user["id"], "accepted_at": datetime.now(timezone.utc).isoformat()}, {"id": f"eq.{invitation['id']}", "status": "eq.pending"}, "PATCH")
+    return {"accepted": True, "showroom_id": invitation["showroom_id"], "role": "partner"}
+
+
+@app.get("/api/partners/me")
+async def partner_portal_summary(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await authenticated_user(authorization)
+    membership = await supabase_rows("showroom_members", {"user_id": f"eq.{user_id}", "role": "eq.partner", "select": "showroom_id,partner_id,created_at", "order": "created_at.desc", "limit": "1"})
+    if not membership or not membership[0].get("partner_id"):
+        raise HTTPException(403, "This account does not have a linked partner portal.")
+    link = membership[0]
+    partner_rows, showroom_rows, investments, settlements = await asyncio.gather(
+        supabase_rows("partners", {"id": f"eq.{link['partner_id']}", "showroom_id": f"eq.{link['showroom_id']}", "select": "id,full_name,email,phone,ownership_percentage,profit_sharing_percentage,joining_date,status", "limit": "1"}),
+        supabase_rows("showrooms", {"id": f"eq.{link['showroom_id']}", "select": "id,name,currency", "limit": "1"}),
+        supabase_rows("partner_capital_entries", {"showroom_id": f"eq.{link['showroom_id']}", "partner_id": f"eq.{link['partner_id']}", "select": "id,entry_date,amount,entry_type,method,reference,notes,status", "order": "entry_date.desc", "limit": "500"}),
+        supabase_rows("partner_settlements", {"showroom_id": f"eq.{link['showroom_id']}", "partner_id": f"eq.{link['partner_id']}", "select": "id,settlement_date,amount,settlement_type,reference,notes", "order": "settlement_date.desc", "limit": "500"}),
+    )
+    if not partner_rows:
+        raise HTTPException(404, "Partner record is no longer available.")
+    return {"showroom": showroom_rows[0] if showroom_rows else {}, "partner": partner_rows[0], "investments": investments, "settlements": settlements}
 
 
 @app.post("/api/notifications/process")
@@ -489,8 +608,8 @@ async def admin_metrics(x_admin_secret: str | None = Header(default=None), autho
 @app.get("/api/billing/subscription")
 async def billing_subscription(authorization: str | None = Header(default=None), x_showroom_id: str | None = Header(default=None)) -> dict[str, Any]:
     user_id = await authenticated_user(authorization)
-    if not x_showroom_id or not await allowed(x_showroom_id, user_id):
-        raise HTTPException(403, "Showroom access denied.")
+    if not x_showroom_id or not await showroom_owner(x_showroom_id, user_id):
+        raise HTTPException(403, "Only the showroom owner can view billing details.")
     subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due,expired)", "select": "id,status,monthly_amount,next_billing_date,last_paid_at,provider_reference", "order": "created_at.desc", "limit": "1"})
     if not subscriptions:
         raise HTTPException(404, "No current subscription was found for this showroom.")
@@ -626,7 +745,7 @@ async def ask(request: AskRequest, authorization: str | None = Header(default=No
         raise HTTPException(400, "x-showroom-id is required.")
     token = (authorization or "").removeprefix("Bearer ").strip()
     user_id = await verify_user(token)
-    if not user_id or not await allowed(x_showroom_id, user_id):
+    if not user_id or not await showroom_operator(x_showroom_id, user_id):
         raise HTTPException(403, "Showroom access denied.")
     data = await snapshot(x_showroom_id)
     generated = await model_answer(request.question, data)

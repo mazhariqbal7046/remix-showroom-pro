@@ -12,6 +12,7 @@ import {
   PieChart,
   Calendar,
   ArrowRight,
+  Send,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
@@ -28,6 +29,7 @@ export const PartnersPage = () => {
     addPartner,
     updatePartner,
     removePartner,
+    invitePartnerLogin,
   } = useApp();
 
   const { toast } = useToast();
@@ -37,6 +39,7 @@ export const PartnersPage = () => {
   const [editingPartner, setEditingPartner] = useState(null);
   const [viewPartner, setViewPartner] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [invitingPartner, setInvitingPartner] = useState(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -132,6 +135,16 @@ export const PartnersPage = () => {
       toast.info(`Partner ${deleteTarget.fullName} removed from active roster.`, 'Partner Removed');
       setDeleteTarget(null);
     }
+  };
+
+  const sendPartnerInvite = async (partner) => {
+    setInvitingPartner(partner.id);
+    try {
+      const result = await invitePartnerLogin(partner.id);
+      if (result.error) toast.error(result.error.message, 'Partner invitation failed');
+      else toast.success(`A secure, seven-day sign-in link was queued for ${partner.email}.`, 'Invitation sent');
+    } catch (error) { toast.error(error.message || 'Could not send partner invitation.', 'Partner invitation failed'); }
+    finally { setInvitingPartner(null); }
   };
 
   return (
@@ -230,6 +243,14 @@ export const PartnersPage = () => {
                 Joined: {formatDate(partner.joiningDate)}
               </span>
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => sendPartnerInvite(partner)}
+                  disabled={invitingPartner === partner.id}
+                  className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 disabled:opacity-50"
+                  title="Send secure partner login invitation"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={() => openEditPartner(partner)}
                   className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -339,7 +360,7 @@ export const PartnersPage = () => {
           </div>
 
           <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[11px] text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-            Partner details are stored in this showroom database. Partner login invitations are not configured yet.
+            Partner sign-in uses a seven-day email invitation. Partners can only read their own profile, investments and settlements.
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

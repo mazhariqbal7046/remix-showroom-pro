@@ -12,9 +12,9 @@ export const auth = {
     if (!supabase) return { data: null, error: new Error('Supabase is not configured. Account authentication is unavailable.') };
     return supabase.auth.signInWithPassword({ email, password });
   },
-  signUp: async ({ email, password, metadata }) => {
+  signUp: async ({ email, password, metadata, redirectTo }) => {
     if (!supabase) return { data: null, error: new Error('Supabase is not configured. Account registration is unavailable.') };
-    return supabase.auth.signUp({ email, password, options: { data: metadata } });
+    return supabase.auth.signUp({ email, password, options: { data: metadata, ...(redirectTo ? { emailRedirectTo: redirectTo } : {}) } });
   },
   signOut: async () => supabase ? supabase.auth.signOut() : { error: null },
   getSession: async () => supabase ? supabase.auth.getSession() : { data: { session: null }, error: null },
@@ -40,13 +40,17 @@ const monitorWrite = async (operation, label) => {
   }
 };
 
-export const ensureShowroom = async ({ user, metadata = {} }) => {
+export const ensureShowroom = async ({ user, metadata = {}, allowCreate = true }) => {
   if (!supabase || !user?.id) return { data: null, error: null };
   const existing = await supabase.from('showrooms').select('*').eq('owner_id', user.id).limit(1).maybeSingle();
   if (existing.error) return existing;
   if (existing.data) {
-    const membership = await supabase.from('showroom_members').upsert({ showroom_id: existing.data.id, user_id: user.id, role: 'owner' }, { onConflict: 'showroom_id,user_id' });
+    const membership = await supabase.from('showroom_members').select('user_id').eq('showroom_id', existing.data.id).eq('user_id', user.id).maybeSingle();
     if (membership.error) return { data: null, error: membership.error };
+    if (!membership.data) {
+      const added = await supabase.from('showroom_members').insert({ showroom_id: existing.data.id, user_id: user.id, role: 'owner' });
+      if (added.error) return { data: null, error: added.error };
+    }
     if (metadata.showroomName || metadata.phone || user.email) {
       const profileUpdate = await supabase.from('showrooms').update({
         ...(metadata.showroomName ? { name: metadata.showroomName } : {}),
@@ -59,8 +63,12 @@ export const ensureShowroom = async ({ user, metadata = {} }) => {
       if (profileUpdate.error) return { data: null, error: profileUpdate.error };
       existing.data = profileUpdate.data;
     }
-    return existing;
+    return { ...existing, role: 'owner' };
   }
+  const membership = await supabase.from('showroom_members').select('showroom_id,role,partner_id,showrooms(*)').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (membership.error) return { data: null, error: membership.error };
+  if (membership.data?.showrooms) return { data: { ...membership.data.showrooms, role: membership.data.role, partnerId: membership.data.partner_id }, error: null };
+  if (!allowCreate) return { data: null, error: null };
   const created = await supabase.from('showrooms').insert({ owner_id: user.id, name: metadata.showroomName || 'My EV Bike Showroom', category: metadata.businessCategory || 'EV Bike Dealership', address: metadata.businessAddress || null, currency: metadata.currency || 'PKR', email: user.email || null, phone: metadata.phone || null, country: metadata.country || 'Pakistan' }).select().single();
   if (!created.error && created.data) {
     const membership = await supabase.from('showroom_members').insert({ showroom_id: created.data.id, user_id: user.id, role: 'owner' });

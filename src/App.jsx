@@ -17,6 +17,7 @@ import { PricingPage } from './pages/public/PricingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { PartnerInvitePage } from './pages/auth/PartnerInvitePage';
 
 // Showroom Pages
 import { DashboardPage } from './pages/showroom/DashboardPage';
@@ -38,6 +39,7 @@ import { BookingsPage } from './pages/showroom/BookingsPage';
 import { FinancePage } from './pages/showroom/FinancePage';
 import { BusinessReportsPage } from './pages/showroom/BusinessReportsPage';
 import { PartnerFinancePage } from './pages/showroom/PartnerFinancePage';
+import { PartnerPortalPage } from './pages/showroom/PartnerPortalPage';
 import { QuotationsPage } from './pages/showroom/QuotationsPage';
 import { AIAssistantPage } from './pages/showroom/AIAssistantPage';
 
@@ -70,9 +72,11 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/partner-invite" element={<PartnerInvitePage />} />
 
               {/* Showroom Owner Management Routes */}
               <Route element={<ShowroomLayout />}>
+                <Route path="/partner-portal" element={<PartnerPortalPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/products" element={<ProductsPage />} />

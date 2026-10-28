@@ -52,9 +52,10 @@ export const LoginPage = () => {
       if (isAdminEmail && !isAdmin) {
         throw new Error('This account is not authorized for Super Admin access.');
       }
-      setCurrentRole(isAdmin ? 'super_admin' : 'showroom_owner');
+      const isPartner = result.role === 'partner';
+      setCurrentRole(isAdmin ? 'super_admin' : isPartner ? 'partner' : 'owner');
       toast.success('Signed in securely.', isAdmin ? 'Super Admin Authentication' : 'Supabase Authentication');
-      navigate(isAdmin ? '/super-admin' : '/dashboard');
+      navigate(isAdmin ? '/super-admin' : isPartner ? '/partner-portal' : '/dashboard');
     } catch (error) {
       toast.error(error.message || 'Unable to sign in. Check your email and password.', 'Authentication failed');
     }
