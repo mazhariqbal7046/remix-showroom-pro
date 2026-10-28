@@ -114,17 +114,32 @@ export const AppProvider = ({ children }) => {
       const user = data?.session?.user || null;
       setAuthUser(user);
       setAuthLoading(false);
-      if (user && isSupabaseConfigured) await hydrateSupabase(user);
+      if (user && isSupabaseConfigured) await hydrateSupabase(user, data?.session?.access_token);
     });
-    const { data: listener } = auth.onAuthStateChange(async (_event, session) => { const user = session?.user || null; setAuthUser(user); if (user && isSupabaseConfigured) await hydrateSupabase(user); });
+    const { data: listener } = auth.onAuthStateChange(async (_event, session) => { const user = session?.user || null; setAuthUser(user); if (user && isSupabaseConfigured) await hydrateSupabase(user, session?.access_token); });
     return () => { active = false; listener?.subscription?.unsubscribe?.(); };
   }, []);
 
-  const hydrateSupabase = async (user) => {
+  const hydrateSupabase = async (user, accessToken) => {
     const pending = loadLocal('pending_onboarding', {});
     const showroomResult = await ensureShowroom({ user, metadata: pending });
     if (showroomResult.error || !showroomResult.data) return;
     const showroom = showroomResult.data;
+    if (accessToken && user.app_metadata?.role !== 'super_admin') {
+      const apiBase = (import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001').replace(/\/$/, '');
+      try {
+        const billingResponse = await fetch(`${apiBase}/api/billing/ensure-trial`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'x-showroom-id': showroom.id },
+        });
+        if (!billingResponse.ok) {
+          const payload = await billingResponse.json().catch(() => ({}));
+          window.dispatchEvent(new CustomEvent('showroom:database-error', { detail: { label: 'Subscription setup', message: payload.detail || 'Could not load or initialize the showroom subscription.' } }));
+        }
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('showroom:database-error', { detail: { label: 'Subscription setup', message: error?.message || 'Could not connect to the billing service.' } }));
+      }
+    }
     setShowroomInfo((current) => ({ ...current, ...showroom, id: showroom.id, name: showroom.name, category: showroom.category || current.category, address: showroom.address || current.address, currency: showroom.currency || current.currency }));
     setUserProfile({ fullName: user.user_metadata?.fullName || user.user_metadata?.full_name || '', email: user.email || '', phone: showroom.phone || user.user_metadata?.phone || '', role: user.app_metadata?.role === 'super_admin' ? 'Super Admin' : 'Owner', avatar: '' });
     const loaded = await loadShowroomData(showroom.id);
@@ -160,7 +175,7 @@ export const AppProvider = ({ children }) => {
     try { localStorage.setItem('showroom_pro_pending_onboarding', JSON.stringify(metadata || {})); } catch {}
     const result = await auth.signUp({ email, password, metadata });
     if (result.error) throw result.error;
-    if (result.data?.user && result.data?.session) await hydrateSupabase(result.data.user);
+    if (result.data?.user && result.data?.session) await hydrateSupabase(result.data.user, result.data.session.access_token);
     return result;
   };
   const signOut = async () => { await auth.signOut(); setAuthUser(null); };
@@ -189,13 +204,44 @@ export const AppProvider = ({ children }) => {
   };
   const adminRequest = (path, options) => apiRequest(path, options);
   const fetchAdminMetrics = () => adminRequest('/api/admin/metrics');
-  const fetchAdminShowrooms = () => adminRequest('/api/admin/showrooms');
+  const fetchAdminShowrooms = async () => {
+    const result = await adminRequest('/api/admin/showrooms');
+    if (result.data?.showrooms) setAdminShowrooms(result.data.showrooms);
+    return result;
+  };
   const fetchPlatformPaymentSettings = () => adminRequest('/api/admin/payment-settings');
   const savePlatformPaymentSettings = (body) => adminRequest('/api/admin/payment-settings', { method: 'PUT', body });
   const fetchSubscriptionPayments = () => adminRequest('/api/admin/subscription-payments');
+  const fetchPlatformActivityLogs = () => adminRequest('/api/admin/activity-logs');
   const reviewSubscriptionPayment = (id, body) => adminRequest(`/api/admin/subscription-payments/${id}/review`, { method: 'POST', body });
   const fetchBillingSubscription = () => apiRequest('/api/billing/subscription', { showroom: true });
   const submitSubscriptionPayment = (body) => apiRequest('/api/billing/subscription-payments', { method: 'POST', body, showroom: true });
+
+  const notifyLowStockTransition = (before, after, includeInitial = false) => {
+    if (!showroomInfo.email || !after) return;
+    const availableBefore = before ? Number(before.quantity || 0) - Number(before.reservedQuantity || 0) : Infinity;
+    const availableAfter = Number(after.quantity || 0) - Number(after.reservedQuantity || 0);
+    const threshold = Number(after.minStockThreshold || 0);
+    if (availableAfter <= threshold && (includeInitial || availableBefore > threshold)) {
+      void queueEmailNotification({ eventType: 'low_stock', destination: showroomInfo.email, subject: `Low stock alert: ${after.name || after.model}`, body: `${after.name || after.model} has ${Math.max(0, availableAfter)} unreserved unit(s) available, at or below the minimum threshold of ${threshold}.`, recipientType: 'owner' });
+    }
+  };
+
+  const notifyBookedCustomersOfArrival = (productId, receivedQuantity) => {
+    const quantity = Math.max(0, Number(receivedQuantity || 0));
+    if (!quantity) return;
+    const candidates = bookings.filter((booking) => booking.bikeProductId === productId && !booking.stockArrivalNotifiedAt && !['Cancelled', 'Delivered'].includes(booking.status) && (booking.customerEmail || customers.find((customer) => customer.id === booking.customerId)?.email)).sort((a, b) => String(a.bookingDate || '').localeCompare(String(b.bookingDate || ''))).slice(0, quantity);
+    if (!candidates.length) return;
+    const notifiedAt = new Date().toISOString();
+    const notifiedIds = new Set(candidates.map((booking) => booking.id));
+    const updatedBookings = bookings.map((booking) => notifiedIds.has(booking.id) ? { ...booking, stockArrivalNotifiedAt: notifiedAt } : booking);
+    setBookings(updatedBookings);
+    for (const booking of candidates) {
+      const email = booking.customerEmail || customers.find((customer) => customer.id === booking.customerId)?.email;
+      void queueEmailNotification({ eventType: 'bike_stock_arrived', destination: email, subject: `Your booked ${booking.bikeBrand || ''} ${booking.bikeModel || 'EV bike'} is in stock`, body: `Hello ${booking.customerName}, the bike reserved under booking ${booking.bookingNumber} has arrived at ${showroomInfo.name}. Please contact the showroom to arrange collection.`, recipientType: 'customer', recipientId: booking.customerId });
+      void syncEntity('bookings', { ...booking, stockArrivalNotifiedAt: notifiedAt }, showroomInfo.id);
+    }
+  };
 
   // Active Plan Resolution
   const activePlan = useMemo(() => {
@@ -307,7 +353,8 @@ export const AppProvider = ({ children }) => {
     setProducts(updated);
     saveLocal('products', updated);
     void syncEntity('inventory_units', newProd, showroomInfo.id);
-    if (showroomInfo.email && newProd.quantity <= newProd.minStockThreshold) void queueEmailNotification({ eventType: 'low_stock', destination: showroomInfo.email, subject: `Low stock alert: ${newProd.name || newProd.model}`, body: `${newProd.name || newProd.model} has ${newProd.quantity} units remaining, at or below the minimum threshold of ${newProd.minStockThreshold}.`, recipientType: 'owner' });
+    notifyLowStockTransition(null, newProd, true);
+    notifyBookedCustomersOfArrival(newProd.id, newProd.quantity);
     return newProd;
   };
 
@@ -329,7 +376,9 @@ export const AppProvider = ({ children }) => {
     saveLocal('products', updated);
     void syncEntity('inventory_units', updated.find((item) => item.id === id), showroomInfo.id);
     const changed = updated.find((item) => item.id === id);
-    if (showroomInfo.email && changed && changed.quantity <= changed.minStockThreshold) void queueEmailNotification({ eventType: 'low_stock', destination: showroomInfo.email, subject: `Low stock alert: ${changed.name || changed.model}`, body: `${changed.name || changed.model} has ${changed.quantity} units remaining, at or below the minimum threshold of ${changed.minStockThreshold}.`, recipientType: 'owner' });
+    notifyLowStockTransition(products.find((item) => item.id === id), changed);
+    const beforeQuantity = Number(products.find((item) => item.id === id)?.quantity || 0);
+    if (changed && Number(changed.quantity) > beforeQuantity) notifyBookedCustomersOfArrival(id, Number(changed.quantity) - beforeQuantity);
   };
 
   const deleteProduct = (id) => {
@@ -370,6 +419,10 @@ export const AppProvider = ({ children }) => {
   // Sales & Invoices Actions
   const addSale = (saleData) => {
     const invNum = `INV-${new Date().getFullYear()}-${Date.now()}`;
+    const saleCostOfGoods = (saleData.items || []).reduce((sum, item) => {
+      const product = products.find((row) => row.id === item.productId || row.name === item.productName);
+      return sum + Number(item.quantity || 0) * Number(item.unitCost ?? product?.costPrice ?? 0);
+    }, 0);
     const newSale = {
       ...saleData,
       id: newRecordId(),
@@ -378,6 +431,7 @@ export const AppProvider = ({ children }) => {
       subtotal: Number(saleData.subtotal) || 0,
       discount: Number(saleData.discount) || 0,
       total: Number(saleData.total) || 0,
+      costOfGoods: saleCostOfGoods,
       paidAmount: Number(saleData.paidAmount) || 0,
       remainingBalance: Math.max(0, (Number(saleData.total) || 0) - (Number(saleData.paidAmount) || 0)),
       status: Number(saleData.paidAmount) >= Number(saleData.total) ? 'Paid' : (Number(saleData.paidAmount) > 0 ? 'Partially Paid' : 'Unpaid'),
@@ -394,7 +448,10 @@ export const AppProvider = ({ children }) => {
       return soldQuantity ? { ...product, quantity: Math.max(0, Number(product.quantity || 0) - soldQuantity) } : product;
     });
     setProducts(productUpdates);
-    productUpdates.filter((product) => product.quantity !== products.find((old) => old.id === product.id)?.quantity).forEach((product) => void syncEntity('inventory_units', product, showroomInfo.id));
+    productUpdates.filter((product) => product.quantity !== products.find((old) => old.id === product.id)?.quantity).forEach((product) => {
+      void syncEntity('inventory_units', product, showroomInfo.id);
+      notifyLowStockTransition(products.find((old) => old.id === product.id), product);
+    });
 
     // Update customer purchases and balance if linked
     if (saleData.customerId) {
@@ -452,20 +509,22 @@ export const AppProvider = ({ children }) => {
 
     // Increase product quantities in stock
     if (purchaseData.items && purchaseData.items.length) {
-      setProducts(prevProducts => {
-        const productUpdates = prevProducts.map(prod => {
-          const purItem = purchaseData.items.find(i => i.productName === prod.name || i.productId === prod.id);
-          if (purItem) {
-          const oldQuantity = Number(prod.quantity || 0);
-          const receivedQuantity = Number(purItem.quantity || 0);
-          const unitCost = Number(purItem.unitCost || 0);
-          return { ...prod, quantity: oldQuantity + receivedQuantity, costPrice: oldQuantity + receivedQuantity > 0 ? ((oldQuantity * Number(prod.costPrice || 0)) + (receivedQuantity * unitCost)) / (oldQuantity + receivedQuantity) : unitCost };
-          }
-          return prod;
-        });
-        saveLocal('products', productUpdates);
-        productUpdates.filter((product) => product.quantity !== prevProducts.find((old) => old.id === product.id)?.quantity).forEach((product) => void syncEntity('inventory_units', product, showroomInfo.id));
-        return productUpdates;
+      const productUpdates = products.map((prod) => {
+        const purItem = purchaseData.items.find((item) => item.productName === prod.name || item.productId === prod.id);
+        if (!purItem) return prod;
+        const oldQuantity = Number(prod.quantity || 0);
+        const receivedQuantity = Number(purItem.quantity || 0);
+        const unitCost = Number(purItem.unitCost || 0);
+        return { ...prod, quantity: oldQuantity + receivedQuantity, costPrice: oldQuantity + receivedQuantity > 0 ? ((oldQuantity * Number(prod.costPrice || 0)) + (receivedQuantity * unitCost)) / (oldQuantity + receivedQuantity) : unitCost };
+      });
+      setProducts(productUpdates);
+      saveLocal('products', productUpdates);
+      productUpdates.filter((product) => product.quantity !== products.find((old) => old.id === product.id)?.quantity).forEach((product) => {
+        void syncEntity('inventory_units', product, showroomInfo.id);
+        const oldProduct = products.find((old) => old.id === product.id);
+        notifyLowStockTransition(oldProduct, product);
+        const receivedQuantity = (purchaseData.items || []).filter((item) => item.productName === product.name || item.productId === product.id).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        notifyBookedCustomersOfArrival(product.id, receivedQuantity);
       });
     }
 
@@ -537,7 +596,7 @@ export const AppProvider = ({ children }) => {
   // Subscription Actions
   const updateSubscriptionPlan = (planId) => {
     const selectedPlan = plans.find(p => p.id === planId);
-    if (!selectedPlan) return;
+    if (!selectedPlan || planId !== 'showroom') return;
 
     const newSub = {
       ...subscription,
@@ -548,7 +607,6 @@ export const AppProvider = ({ children }) => {
     };
     setSubscription(newSub);
     saveLocal('subscription', newSub);
-    if (showroomInfo?.id) void syncEntity('subscriptions', { ...newSub, monthlyAmount: selectedPlan.monthlyPrice, startedAt: new Date().toISOString().slice(0, 10), nextBillingDate: newSub.renewalDate }, showroomInfo.id);
   };
 
   // Notifications Actions
@@ -586,8 +644,8 @@ export const AppProvider = ({ children }) => {
   const addBooking = (data) => {
     const initialAmount = Number(data.amountReceived || 0);
     const initialPayment = initialAmount > 0 ? [{ id: newRecordId(), receiptNumber: `RCT-${new Date().getFullYear()}-${Date.now()}`, date: data.bookingDate || new Date().toISOString().slice(0, 10), amount: initialAmount, method: data.paymentMethod || 'Cash', reference: data.paymentReference || null }] : [];
-    const next = { ...data, id: newRecordId(), bookingNumber: data.bookingNumber || `BK-${new Date().getFullYear()}-${Date.now()}`, payments: data.payments || initialPayment, status: data.status || 'Pending', deliveryStatus: data.deliveryStatus || 'Reserved' };
-    const product = products.find((item) => item.id === next.bikeProductId);
+    const product = products.find((item) => item.id === data.bikeProductId);
+    const next = { ...data, costOfGoods: Number(data.costOfGoods ?? product?.costPrice ?? 0), id: newRecordId(), bookingNumber: data.bookingNumber || `BK-${new Date().getFullYear()}-${Date.now()}`, payments: data.payments || initialPayment, status: data.status || 'Pending', deliveryStatus: data.deliveryStatus || 'Reserved' };
     const activeReservations = bookings.filter((item) => item.bikeProductId === next.bikeProductId && !['Cancelled', 'Delivered'].includes(item.status)).length;
     if (product && activeReservations >= Number(product.quantity || 0)) throw new Error(`No available ${product.name} unit remains for reservation.`);
     const normalized = normaliseBooking(next);
@@ -598,6 +656,7 @@ export const AppProvider = ({ children }) => {
       setProducts(productsUpdated);
       const changed = productsUpdated.find((item) => item.id === product.id);
       void syncEntity('inventory_units', changed, showroomInfo.id);
+      notifyLowStockTransition(product, changed);
     }
     return persist(setBookings, 'bookings', [normalized, ...bookings]);
   };
@@ -610,7 +669,10 @@ export const AppProvider = ({ children }) => {
       setProducts(updatedProducts);
       saveLocal('products', updatedProducts);
       const changed = updatedProducts.find((product) => product.id === current.bikeProductId);
-      if (changed) void syncEntity('inventory_units', changed, showroomInfo.id);
+      if (changed) {
+        void syncEntity('inventory_units', changed, showroomInfo.id);
+        notifyLowStockTransition(products.find((product) => product.id === current.bikeProductId), changed);
+      }
       next.inventoryDeducted = true;
     } else if (next.status === 'Cancelled' && current.status !== 'Cancelled' && current.status !== 'Delivered' && current.bikeProductId) {
       const updatedProducts = products.map((product) => product.id === current.bikeProductId ? { ...product, reservedQuantity: Math.max(0, Number(product.reservedQuantity || 0) - 1) } : product);
@@ -728,6 +790,7 @@ export const AppProvider = ({ children }) => {
     fetchPlatformPaymentSettings,
     savePlatformPaymentSettings,
     fetchSubscriptionPayments,
+    fetchPlatformActivityLogs,
     reviewSubscriptionPayment,
     fetchBillingSubscription,
     submitSubscriptionPayment,

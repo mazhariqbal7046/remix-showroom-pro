@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, Link, Navigate } from 'react-router-dom';
 import {
   ShieldAlert,
@@ -27,8 +27,10 @@ import { Badge } from '../common/Badge';
 
 export const AdminLayout = () => {
   const { theme, toggleTheme } = useTheme();
-  const { adminShowrooms, platformSettings, authUser, authLoading, isSupabaseConfigured } = useApp();
+  const { adminShowrooms, platformSettings, authUser, authLoading, isSupabaseConfigured, fetchAdminShowrooms } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => { if (authUser) void fetchAdminShowrooms(); }, [authUser]);
 
   if (authLoading) {
     return <div className="min-h-screen grid place-items-center bg-slate-950 text-slate-300">Checking admin access…</div>;

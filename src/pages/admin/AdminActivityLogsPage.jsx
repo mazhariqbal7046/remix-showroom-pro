@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileText,
   Search,
@@ -16,8 +16,27 @@ import { SearchFilterBar } from '../../components/common/SearchFilterBar';
 import { exportToCSV } from '../../utils/formatters';
 
 export const AdminActivityLogsPage = () => {
-  const { adminLogs } = useApp();
+  const { fetchPlatformActivityLogs } = useApp();
   const { toast } = useToast();
+  const [adminLogs, setAdminLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    fetchPlatformActivityLogs().then(({ data, error }) => {
+      if (!active) return;
+      if (error) toast.error(error.message, 'Could not load activity logs');
+      setAdminLogs((data?.logs || []).map((row) => ({
+        id: row.id,
+        timestamp: row.created_at,
+        actor: row.actor_id || 'System admin',
+        action: row.event_type.replaceAll('_', ' '),
+        target: `${row.target_type}${row.target_id ? ` · ${row.target_id}` : ''}`,
+        severity: row.event_type.includes('rejected') ? 'warning' : 'info',
+      })));
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   const [search, setSearch] = useState('');
   const [severityFilter, setSeverityFilter] = useState('all');
@@ -60,11 +79,11 @@ export const AdminActivityLogsPage = () => {
             Platform Activity Audit Logs
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Immutable log trail of platform administrative actions, logins, and tenant modifications.
+            Recorded platform setting changes and subscription payment decisions.
           </p>
         </div>
 
-        <Button variant="secondary" size="md" onClick={handleExport}>
+        <Button variant="secondary" size="md" onClick={handleExport} disabled={!adminLogs.length}>
           Export Audit Trail
         </Button>
       </div>
@@ -123,6 +142,8 @@ export const AdminActivityLogsPage = () => {
                   </td>
                 </tr>
               ))}
+              {!loading && filtered.length === 0 && <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">No recorded admin changes yet.</td></tr>}
+              {loading && <tr><td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">Loading audit events…</td></tr>}
             </tbody>
           </table>
         </div>

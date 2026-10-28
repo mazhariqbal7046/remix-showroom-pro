@@ -49,7 +49,7 @@ export const AdminPlansPage = () => {
         </div>
 
         <p className="mt-6 border-t border-slate-800 pt-4 text-xs text-slate-500">
-          Price is fixed at Rs. 10,000 per month. Online payment collection still needs a payment provider.
+          Price is fixed at Rs. 10,000 per month. Bank transfers are submitted by showroom owners and activated after admin verification; automatic debit is not connected.
         </p>
       </section>
     </div>

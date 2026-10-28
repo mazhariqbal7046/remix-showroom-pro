@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext();
@@ -23,6 +23,15 @@ export const ToastProvider = ({ children }) => {
   const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  useEffect(() => {
+    const onDatabaseError = (event) => {
+      const label = event.detail?.label || 'Save change';
+      addToast({ type: 'error', title: 'Database save failed', message: `${label} did not reach Supabase. Refresh the page before retrying to avoid duplicate records.` });
+    };
+    window.addEventListener('showroom:database-error', onDatabaseError);
+    return () => window.removeEventListener('showroom:database-error', onDatabaseError);
+  }, [addToast]);
 
   const toast = {
     success: (message, title = 'Success') => addToast({ type: 'success', title, message }),

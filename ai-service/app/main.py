@@ -4,6 +4,7 @@ import asyncio
 import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import httpx
 from dotenv import load_dotenv
@@ -68,12 +69,22 @@ app.add_middleware(CORSMiddleware, allow_origins=os.getenv("CLIENT_ORIGIN", "htt
 async def supabase_rows(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return []
-    headers = {"apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"}
+    chunk_size = min(1000, max(1, int(params.get("limit", "100000"))))
+    headers = {"apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}", "Range-Unit": "items"}
+    rows: list[dict[str, Any]] = []
     async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.get(f"{SUPABASE_URL}/rest/v1/{table}", params=params, headers=headers)
-    if response.is_error:
-        raise HTTPException(502, f"Supabase query failed for {table}.")
-    return response.json()
+        offset = 0
+        while offset < int(params.get("limit", "100000")):
+            page_headers = {**headers, "Range": f"{offset}-{offset + chunk_size - 1}"}
+            response = await client.get(f"{SUPABASE_URL}/rest/v1/{table}", params=params, headers=page_headers)
+            if response.is_error:
+                raise HTTPException(502, f"Supabase query failed for {table}.")
+            page = response.json()
+            rows.extend(page)
+            if len(page) < chunk_size:
+                break
+            offset += len(page)
+    return rows
 
 
 async def verify_user(token: str) -> str | None:
@@ -128,6 +139,33 @@ async def require_admin(authorization: str | None) -> str:
     return user_id
 
 
+async def log_admin_action(actor_id: str, event_type: str, target_type: str, target_id: str | None, details: dict[str, Any] | None = None) -> None:
+    try:
+        await supabase_write("platform_activity_logs", {"actor_id": actor_id, "event_type": event_type, "target_type": target_type, "target_id": target_id, "details": details or {}})
+    except Exception:
+        # The requested change must not be reported as failed only because its
+        # separate audit entry could not be recorded.
+        return
+
+
+async def supabase_auth_user_count() -> int:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(503, "Supabase service is not configured.")
+    headers = {"apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"}
+    page, count = 1, 0
+    async with httpx.AsyncClient(timeout=20) as client:
+        while True:
+            response = await client.get(f"{SUPABASE_URL}/auth/v1/admin/users", params={"page": page, "per_page": 1000}, headers=headers)
+            if response.is_error:
+                raise HTTPException(502, "Supabase Auth user count could not be loaded.")
+            payload = response.json()
+            users = payload.get("users", []) if isinstance(payload, dict) else payload
+            count += len(users)
+            if len(users) < 1000:
+                return count
+            page += 1
+
+
 def add_billing_month(value: date) -> date:
     month_index = value.month
     year = value.year + (month_index // 12)
@@ -138,10 +176,10 @@ def add_billing_month(value: date) -> date:
     return date(year, month, min(value.day, last_day))
 
 
-async def supabase_write(table: str, payload: dict[str, Any], params: dict[str, str] | None = None, method: str = "POST") -> dict[str, Any]:
+async def supabase_write(table: str, payload: dict[str, Any], params: dict[str, str] | None = None, method: str = "POST", prefer: str | None = None) -> dict[str, Any]:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         raise HTTPException(503, "Supabase service is not configured.")
-    headers = {"apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=representation" if params and params.get("on_conflict") else "return=representation"}
+    headers = {"apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json", "Prefer": prefer or ("resolution=merge-duplicates,return=representation" if params and params.get("on_conflict") else "return=representation")}
     async with httpx.AsyncClient(timeout=20) as client:
         response = await client.request(method, f"{SUPABASE_URL}/rest/v1/{table}", params=params or {}, headers=headers, json=payload)
     if response.is_error:
@@ -178,6 +216,7 @@ async def process_email_queue() -> int:
 async def notification_worker() -> None:
     while True:
         try:
+            await run_scheduled_email_jobs()
             await process_email_queue()
         except Exception:
             pass
@@ -207,18 +246,133 @@ def amount(row: dict[str, Any], key: str) -> float:
         return 0.0
 
 
-async def snapshot(showroom_id: str) -> dict[str, Any]:
+async def snapshot(showroom_id: str, period_start: date | None = None, period_end: date | None = None) -> dict[str, Any]:
+    sales_params = {"showroom_id": f"eq.{showroom_id}", "select": "id,total,cost_of_goods,status,booking_id,date"}
+    expense_params = {"showroom_id": f"eq.{showroom_id}", "select": "amount,expense_date"}
+    if period_start:
+        sales_params["date"] = f"gte.{period_start.isoformat()}"
+        expense_params["expense_date"] = f"gte.{period_start.isoformat()}"
     sales, expenses, bookings, inventory = await asyncio.gather(
-        supabase_rows("sales", {"showroom_id": f"eq.{showroom_id}", "select": "total,cost_of_goods,status"}),
-        supabase_rows("expenses", {"showroom_id": f"eq.{showroom_id}", "select": "amount"}),
-        supabase_rows("bookings", {"showroom_id": f"eq.{showroom_id}", "select": "total_price,status"}),
-        supabase_rows("inventory_units", {"showroom_id": f"eq.{showroom_id}", "select": "status,quantity"}),
+        supabase_rows("sales", sales_params),
+        supabase_rows("expenses", expense_params),
+        supabase_rows("bookings", {"showroom_id": f"eq.{showroom_id}", "select": "id,total_price,cost_of_goods,status,delivery_date,booking_date"}),
+        supabase_rows("inventory_units", {"showroom_id": f"eq.{showroom_id}", "select": "id,quantity,purchase_cost"}),
     )
+    if period_end:
+        sales = [row for row in sales if str(row.get("date") or "") < period_end.isoformat()]
+        expenses = [row for row in expenses if str(row.get("expense_date") or "") < period_end.isoformat()]
     active_sales = [x for x in sales if str(x.get("status", "")).lower() not in {"cancelled", "canceled"}]
-    revenue = sum(amount(x, "total") for x in active_sales)
-    cogs = sum(amount(x, "cost_of_goods") for x in active_sales)
+    invoiced_booking_ids = {x.get("booking_id") for x in active_sales if x.get("booking_id")}
+    delivered_bookings = [b for b in bookings if b.get("status") == "Delivered" and b.get("id") not in invoiced_booking_ids and (not period_start or (b.get("delivery_date") or b.get("booking_date") or "") >= period_start.isoformat()) and (not period_end or (b.get("delivery_date") or b.get("booking_date") or "") < period_end.isoformat())]
+    revenue = sum(amount(x, "total") for x in active_sales) + sum(amount(x, "total_price") for x in delivered_bookings)
+    sales_costs = sum(amount(x, "cost_of_goods") for x in active_sales)
+    if any(amount(x, "cost_of_goods") <= 0 for x in active_sales):
+        missing_cost_sales = [x["id"] for x in active_sales if amount(x, "cost_of_goods") <= 0]
+        if missing_cost_sales:
+            line_items, units = await asyncio.gather(
+                supabase_rows("sale_items", {"select": "sale_id,inventory_id,quantity,unit_cost", "sale_id": f"in.({','.join(missing_cost_sales)})", "limit": "5000"}),
+                supabase_rows("inventory_units", {"showroom_id": f"eq.{showroom_id}", "select": "id,purchase_cost"}),
+            )
+            unit_costs = {unit["id"]: amount(unit, "purchase_cost") for unit in units}
+            item_costs = {sale_id: 0.0 for sale_id in missing_cost_sales}
+            for item in line_items:
+                item_costs[item["sale_id"]] += amount(item, "quantity") * (amount(item, "unit_cost") or unit_costs.get(item.get("inventory_id"), 0))
+            sales_costs = sum(amount(sale, "cost_of_goods") if amount(sale, "cost_of_goods") > 0 else item_costs.get(sale["id"], 0) for sale in active_sales)
+    cogs = sales_costs + sum(amount(x, "cost_of_goods") for x in delivered_bookings)
     operating_expenses = sum(amount(x, "amount") for x in expenses)
     return {"revenue": revenue, "cogs": cogs, "gross_profit": revenue - cogs, "expenses": operating_expenses, "net_profit": revenue - cogs - operating_expenses, "active_bookings": sum(str(x.get("status", "")).lower() not in {"cancelled", "delivered"} for x in bookings), "inventory_units": sum(int(x.get("quantity") or 0) for x in inventory)}
+
+
+async def scheduled_email(showroom_id: str, destination: str, event_type: str, subject: str, body: str, dedupe_key: str, recipient_type: str = "owner", recipient_id: str | None = None) -> None:
+    await supabase_write("notification_deliveries", {
+        "showroom_id": showroom_id,
+        "recipient_type": recipient_type,
+        "recipient_id": recipient_id,
+        "channel": "email",
+        "event_type": event_type,
+        "destination": destination,
+        "payload": {"subject": subject, "body": body},
+        "dedupe_key": dedupe_key,
+    }, {"on_conflict": "dedupe_key"}, prefer="resolution=ignore-duplicates,return=representation")
+
+
+async def begin_scheduled_run(showroom_id: str, job_type: str, business_date: date) -> str | None:
+    filters = {"showroom_id": f"eq.{showroom_id}", "job_type": f"eq.{job_type}", "business_date": f"eq.{business_date.isoformat()}", "select": "id,status", "limit": "1"}
+    rows = await supabase_rows("scheduled_notification_runs", filters)
+    if rows:
+        if rows[0].get("status") != "failed":
+            return None
+        await supabase_write("scheduled_notification_runs", {"status": "processing", "error_message": None}, {"id": f"eq.{rows[0]['id']}"}, "PATCH")
+        return rows[0]["id"]
+    row = await supabase_write("scheduled_notification_runs", {"showroom_id": showroom_id, "job_type": job_type, "business_date": business_date.isoformat(), "status": "processing"})
+    return row.get("id")
+
+
+async def finish_scheduled_run(run_id: str, error: Exception | None = None) -> None:
+    await supabase_write("scheduled_notification_runs", {
+        "status": "failed" if error else "completed",
+        "error_message": str(error)[:500] if error else None,
+        "completed_at": datetime.now(timezone.utc).isoformat() if not error else None,
+    }, {"id": f"eq.{run_id}"}, "PATCH")
+
+
+async def run_scheduled_email_jobs() -> None:
+    now = datetime.now(ZoneInfo("Asia/Karachi"))
+    today = now.date()
+    last_day_of_month = (today + timedelta(days=1)).month != today.month
+    first_day_of_month = today.day == 1
+    jobs: list[tuple[str, date]] = []
+    if now.hour == 20:
+        jobs.append(("daily_showroom_report", today))
+    if now.hour == 18 and last_day_of_month:
+        jobs.append(("monthly_closing_reminder", today))
+    if now.hour == 9 and first_day_of_month:
+        jobs.append(("partner_monthly_profit", today))
+    if not jobs:
+        return
+    showrooms = await supabase_rows("showrooms", {"select": "id,name,email", "order": "created_at.asc"})
+    for job_type, business_date in jobs:
+        for showroom in showrooms:
+            if not showroom.get("email") and job_type != "partner_monthly_profit":
+                continue
+            run_id = await begin_scheduled_run(showroom["id"], job_type, business_date)
+            if not run_id:
+                continue
+            try:
+                if job_type == "daily_showroom_report":
+                    summary = await snapshot(showroom["id"], today, today + timedelta(days=1))
+                    body = (f"Daily showroom report for {today.isoformat()} — {showroom.get('name') or 'Showroom'}\n"
+                            f"Revenue: PKR {summary['revenue']:,.0f}\nCOGS: PKR {summary['cogs']:,.0f}\n"
+                            f"Gross profit: PKR {summary['gross_profit']:,.0f}\nExpenses: PKR {summary['expenses']:,.0f}\n"
+                            f"Net profit: PKR {summary['net_profit']:,.0f}\nActive bookings: {summary['active_bookings']}\n"
+                            f"Current stock units: {summary['inventory_units']}")
+                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Daily showroom report — {today.isoformat()}", body, f"{job_type}:{showroom['id']}:{today.isoformat()}")
+                elif job_type == "monthly_closing_reminder":
+                    body = (f"Today is the final day of {today.strftime('%B %Y')}. Please review today's sales, delivered bookings, COGS, expenses, and stock, then use Close Month in Showroom Pro Business Reports.")
+                    await scheduled_email(showroom["id"], showroom["email"], job_type, f"Monthly closing reminder — {today.strftime('%B %Y')}", body, f"{job_type}:{showroom['id']}:{today.isoformat()}")
+                else:
+                    month_end = today.replace(day=1)
+                    previous_day = month_end - timedelta(days=1)
+                    month_start = previous_day.replace(day=1)
+                    summary = await snapshot(showroom["id"], month_start, month_end)
+                    partners, allocation_rows = await asyncio.gather(
+                        supabase_rows("partners", {"showroom_id": f"eq.{showroom['id']}", "select": "id,full_name,email,profit_sharing_percentage,status"}),
+                        supabase_rows("partner_allocations", {"showroom_id": f"eq.{showroom['id']}", "allocation_type": "eq.profit_sharing", "status": "eq.Approved", "effective_date": f"lte.{previous_day.isoformat()}", "select": "effective_date,allocations", "order": "effective_date.desc", "limit": "100"}),
+                    )
+                    allocation = allocation_rows[0].get("allocations", {}) if allocation_rows else {}
+                    for partner in partners:
+                        if not partner.get("email") or str(partner.get("status", "Active")).lower() != "active":
+                            continue
+                        share = float(allocation.get(partner["id"], partner.get("profit_sharing_percentage") or 0))
+                        allocated = max(0.0, summary["net_profit"]) * share / 100
+                        body = (f"Monthly partner statement for {month_start.strftime('%B %Y')}\n"
+                                f"Showroom: {showroom.get('name') or 'Showroom'}\nProfit share: {share:g}%\n"
+                                f"Showroom net profit: PKR {summary['net_profit']:,.0f}\nYour allocated profit: PKR {allocated:,.0f}\n"
+                                "This is an allocation statement; check with the showroom owner for actual settlement status.")
+                        await scheduled_email(showroom["id"], partner["email"], job_type, f"Partner profit statement — {month_start.strftime('%B %Y')}", body, f"{job_type}:{showroom['id']}:{partner['id']}:{month_start.isoformat()}", "partner", partner["id"])
+                await finish_scheduled_run(run_id)
+            except Exception as error:
+                await finish_scheduled_run(run_id, error)
 
 
 def fallback(question: str, data: dict[str, Any]) -> str:
@@ -280,9 +434,16 @@ async def monthly_closing(request: MonthlyClosingRequest, authorization: str | N
         raise HTTPException(400, "x-showroom-id is required.")
     token = (authorization or "").removeprefix("Bearer ").strip()
     user_id = await verify_user(token)
-    if not user_id or not await allowed(x_showroom_id, user_id):
-        raise HTTPException(403, "Showroom access denied.")
-    data = await snapshot(x_showroom_id)
+    if not user_id or not await showroom_owner(x_showroom_id, user_id):
+        raise HTTPException(403, "Only the showroom owner can close a month.")
+    try:
+        start = date.fromisoformat(request.month_start)
+    except ValueError:
+        raise HTTPException(400, "month_start must be a valid calendar date.")
+    if start.day != 1:
+        raise HTTPException(400, "month_start must be the first day of its month.")
+    end = add_billing_month(start)
+    data = await snapshot(x_showroom_id, start, end)
     row = await supabase_write("monthly_closings", {"showroom_id": x_showroom_id, "month_start": request.month_start, "closed_at": datetime.now(timezone.utc).isoformat(), "closed_by": user_id, "revenue": data["revenue"], "cogs": data["cogs"], "gross_profit": data["gross_profit"], "operating_expenses": data["expenses"], "net_profit": data["net_profit"], "stock_units": data["inventory_units"], "notes": request.notes}, {"on_conflict": "showroom_id,month_start"})
     return {"saved": True, "closing": row, "figures": data}
 
@@ -292,22 +453,31 @@ async def admin_metrics(x_admin_secret: str | None = Header(default=None), autho
     token = (authorization or "").removeprefix("Bearer ").strip()
     if not ((ADMIN_API_SECRET and x_admin_secret == ADMIN_API_SECRET) or await verify_super_admin(token)):
         raise HTTPException(403, "Admin access denied.")
-    showrooms, subscriptions, memberships, inventory, sales, bookings = await asyncio.gather(
+    showrooms, subscriptions, memberships, inventory, sales, bookings, auth_users, payment_rows = await asyncio.gather(
         supabase_rows("showrooms", {"select": "id,created_at"}),
-        supabase_rows("subscriptions", {"select": "status,monthly_amount"}),
+        supabase_rows("subscriptions", {"select": "showroom_id,status,monthly_amount,created_at", "order": "created_at.desc", "limit": "10000"}),
         supabase_rows("showroom_members", {"select": "user_id"}),
         supabase_rows("inventory_units", {"select": "quantity"}),
         supabase_rows("sales", {"select": "total,status"}),
         supabase_rows("bookings", {"select": "status"}),
+        supabase_auth_user_count(),
+        supabase_rows("subscription_payment_submissions", {"status": "eq.approved", "select": "amount"}),
     )
+    latest_subscription_by_showroom: dict[str, dict[str, Any]] = {}
+    for subscription in subscriptions:
+        latest_subscription_by_showroom.setdefault(subscription.get("showroom_id", ""), subscription)
+    current_subscriptions = list(latest_subscription_by_showroom.values())
     active_sales = [item for item in sales if str(item.get("status", "")).lower() not in {"cancelled", "canceled"}]
     return {
-        "signup_count": len(showrooms),
-        "active_showrooms": sum(1 for item in subscriptions if item.get("status") in {"active", "trial"}),
-        "trial_count": sum(1 for item in subscriptions if item.get("status") == "trial"),
-        "active_subscription_count": sum(1 for item in subscriptions if item.get("status") == "active"),
-        "subscription_count": len(subscriptions),
-        "mrr": sum(amount(item, "monthly_amount") for item in subscriptions if item.get("status") == "active"),
+        "signup_count": auth_users,
+        "showroom_count": len(showrooms),
+        "active_showrooms": sum(1 for item in current_subscriptions if item.get("status") == "active"),
+        "trial_count": sum(1 for item in current_subscriptions if item.get("status") == "trial"),
+        "active_subscription_count": sum(1 for item in current_subscriptions if item.get("status") == "active"),
+        "subscription_count": len(current_subscriptions),
+        "mrr": sum(amount(item, "monthly_amount") for item in current_subscriptions if item.get("status") == "active"),
+        "verified_payment_count": len(payment_rows),
+        "verified_payment_total": sum(amount(item, "amount") for item in payment_rows),
         "member_count": len(memberships),
         "inventory_units": sum(int(item.get("quantity") or 0) for item in inventory),
         "recorded_sales": len(active_sales),
@@ -321,12 +491,24 @@ async def billing_subscription(authorization: str | None = Header(default=None),
     user_id = await authenticated_user(authorization)
     if not x_showroom_id or not await allowed(x_showroom_id, user_id):
         raise HTTPException(403, "Showroom access denied.")
-    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due)", "select": "id,status,monthly_amount,next_billing_date,last_paid_at,provider_reference", "limit": "1"})
+    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due,expired)", "select": "id,status,monthly_amount,next_billing_date,last_paid_at,provider_reference", "order": "created_at.desc", "limit": "1"})
     if not subscriptions:
         raise HTTPException(404, "No current subscription was found for this showroom.")
     settings = await supabase_rows("platform_payment_settings", {"select": "account_holder,bank_name,account_number,iban,raast_id,payment_instructions", "limit": "1"})
     payments = await supabase_rows("subscription_payment_submissions", {"showroom_id": f"eq.{x_showroom_id}", "select": "id,amount,currency,transfer_reference,transfer_date,status,created_at,review_note", "order": "created_at.desc", "limit": "30"})
     return {"subscription": subscriptions[0], "payment_details": settings[0] if settings else None, "payments": payments}
+
+
+@app.post("/api/billing/ensure-trial")
+async def ensure_trial_subscription(authorization: str | None = Header(default=None), x_showroom_id: str | None = Header(default=None)) -> dict[str, Any]:
+    user_id = await authenticated_user(authorization)
+    if not x_showroom_id or not await showroom_owner(x_showroom_id, user_id):
+        raise HTTPException(403, "Only the showroom owner can initialize billing.")
+    rows = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "select": "id,status,created_at", "order": "created_at.desc", "limit": "1"})
+    if rows:
+        return {"created": False, "subscription": rows[0]}
+    row = await supabase_write("subscriptions", {"showroom_id": x_showroom_id, "plan_id": "showroom", "status": "trial", "monthly_amount": 10000})
+    return {"created": True, "subscription": row}
 
 
 @app.post("/api/billing/subscription-payments")
@@ -338,7 +520,7 @@ async def submit_subscription_payment(request: BankTransferRequest, authorizatio
         date.fromisoformat(request.transfer_date)
     except ValueError:
         raise HTTPException(400, "Transfer date is invalid.")
-    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due)", "select": "id,monthly_amount", "limit": "1"})
+    subscriptions = await supabase_rows("subscriptions", {"showroom_id": f"eq.{x_showroom_id}", "status": "in.(trial,active,past_due,expired)", "select": "id,monthly_amount", "order": "created_at.desc", "limit": "1"})
     if not subscriptions:
         raise HTTPException(404, "No current subscription was found.")
     settings = await supabase_rows("platform_payment_settings", {"select": "id", "limit": "1"})
@@ -369,6 +551,7 @@ async def admin_update_payment_settings(request: PlatformPaymentSettingsRequest,
     settings = request.model_dump()
     settings.update({"id": True, "updated_at": datetime.now(timezone.utc).isoformat(), "updated_by": user_id})
     row = await supabase_write("platform_payment_settings", settings, {"on_conflict": "id"})
+    await log_admin_action(user_id, "payment_settings_updated", "platform_payment_settings", "platform", {"bank_name": request.bank_name, "account_holder": request.account_holder})
     return {"saved": True, "settings": row}
 
 
@@ -400,7 +583,15 @@ async def admin_review_subscription_payment(payment_id: str, request: PaymentRev
         next_base = date.fromisoformat(current[0]["next_billing_date"]) if current and current[0].get("next_billing_date") else reviewed_at.date()
         next_billing = add_billing_month(max(next_base, reviewed_at.date()))
         await supabase_write("subscriptions", {"status": "active", "provider": "bank_transfer", "provider_reference": payment["transfer_reference"], "last_paid_at": reviewed_at.isoformat(), "next_billing_date": next_billing.isoformat()}, {"id": f"eq.{payment['subscription_id']}"}, "PATCH")
+    await log_admin_action(reviewer_id, f"subscription_payment_{decision_status}", "subscription_payment_submissions", payment_id, {"showroom_id": payment["showroom_id"], "transfer_reference": payment["transfer_reference"], "note": request.note})
     return {"reviewed": True, "payment": reviewed, "subscription_activated": request.decision == "approve"}
+
+
+@app.get("/api/admin/activity-logs")
+async def admin_activity_logs(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    await require_admin(authorization)
+    logs = await supabase_rows("platform_activity_logs", {"select": "id,actor_id,event_type,target_type,target_id,details,created_at", "order": "created_at.desc", "limit": "500"})
+    return {"logs": logs}
 
 
 @app.get("/api/admin/showrooms")
