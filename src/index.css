@@ -9,30 +9,32 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* Runtime color palettes: app blue and indigo accents follow the selected brand. */
-html[data-color-palette="rose-blush"] {
-  --color-blue-50: #fcf8f8;
-  --color-blue-100: #fbefef;
-  --color-blue-200: #f9dfdf;
-  --color-blue-300: #f5afaf;
-  --color-blue-400: #e88e93;
-  --color-blue-500: #d36e75;
-  --color-blue-600: #a9464d;
-  --color-blue-700: #913a41;
-  --color-blue-800: #763138;
-  --color-blue-900: #5b272d;
-  --color-blue-950: #3c191d;
+html[data-color-palette="soft-pastel"] {
+  --color-white: #FFFDF6;
 
-  --color-slate-50: #fcf8f8;
-  --color-slate-100: #fbefef;
-  --color-slate-200: #f9dfdf;
-  --color-slate-300: #f5afaf;
-  --color-slate-400: #987474;
-  --color-slate-500: #765858;
-  --color-slate-600: #60494a;
-  --color-slate-700: #483638;
-  --color-slate-800: #332628;
-  --color-slate-900: #261b1d;
-  --color-slate-950: #1a1112;
+  --color-blue-50: #FFFDF6;
+  --color-blue-100: #F2F9FF;
+  --color-blue-200: #FFCCE1;
+  --color-blue-300: #91DDCF;
+  --color-blue-400: #5EC8B5;
+  --color-blue-500: #389F90;
+  --color-blue-600: #257F73;
+  --color-blue-700: #1E6C62;
+  --color-blue-800: #19574F;
+  --color-blue-900: #16443F;
+  --color-blue-950: #102D2A;
+
+  --color-slate-50: #FFFDF6;
+  --color-slate-100: #F2F9FF;
+  --color-slate-200: #FFCCE1;
+  --color-slate-300: #91DDCF;
+  --color-slate-400: #789791;
+  --color-slate-500: #647D78;
+  --color-slate-600: #4C625E;
+  --color-slate-700: #3C4F4C;
+  --color-slate-800: #293A37;
+  --color-slate-900: #192B29;
+  --color-slate-950: #101C1A;
 }
 
 html[data-color-palette="salesport"] {

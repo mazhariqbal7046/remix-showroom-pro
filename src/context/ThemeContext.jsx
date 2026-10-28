@@ -4,10 +4,10 @@ const ThemeContext = createContext();
 
 export const COLOR_PALETTES = [
   {
-    id: 'rose-blush',
-    name: 'Rose Blush',
-    description: 'Soft pink & warm showroom',
-    colors: ['#FCF8F8', '#FBEFEF', '#F9DFDF', '#F5AFAF'],
+    id: 'soft-pastel',
+    name: 'Soft Pastel',
+    description: 'Warm white, sky blue, blush & mint',
+    colors: ['#FFFDF6', '#F2F9FF', '#FFCCE1', '#91DDCF'],
   },
   {
     id: 'salesport',
@@ -40,14 +40,15 @@ export const ThemeProvider = ({ children }) => {
     try {
       const saved = localStorage.getItem('showroom_pro_color_palette');
       const version = localStorage.getItem('showroom_pro_palette_version');
-      if (version !== 'rose-blush-v1') {
-        localStorage.setItem('showroom_pro_color_palette', 'rose-blush');
-        localStorage.setItem('showroom_pro_palette_version', 'rose-blush-v1');
-        return 'rose-blush';
+      if (version !== 'soft-pastel-v1') {
+        localStorage.setItem('showroom_pro_color_palette', 'soft-pastel');
+        localStorage.setItem('showroom_pro_palette_version', 'soft-pastel-v1');
+        localStorage.setItem('showroom_pro_theme', 'light');
+        return 'soft-pastel';
       }
-      return COLOR_PALETTES.some((option) => option.id === saved) ? saved : 'rose-blush';
+      return COLOR_PALETTES.some((option) => option.id === saved) ? saved : 'soft-pastel';
     } catch {
-      return 'rose-blush';
+      return 'soft-pastel';
     }
   });
 
